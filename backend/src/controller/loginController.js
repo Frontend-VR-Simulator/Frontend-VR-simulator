@@ -104,6 +104,8 @@ export const login = async (req, res) => {
         "Login successful",
         {
           userAllowed: true,
+          userId: user.id,
+          email: user.email,
           role: user.role,
           token: token,
         }

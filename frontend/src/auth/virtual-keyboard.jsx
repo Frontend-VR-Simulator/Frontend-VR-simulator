@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------ */
 /*  Virtual Keyboard (Compact, VR-optimized)                          */
 /* ------------------------------------------------------------------ */
-import React, { useState } from "react";
+import { useState } from "react";
 import { ArrowDown, CaseUpper, Delete, Space } from "lucide-react";
 
 const letterRows = [

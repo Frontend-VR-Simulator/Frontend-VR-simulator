@@ -1,12 +1,16 @@
 
 A login-based web app with a React frontend and a Node.js backend, using Supabase for authentication and JWT for session handling.
 
+It also includes an Electron desktop launcher that authenticates through the
+system browser and starts an installed, packaged Unreal Engine VR application.
+
 ## Project Structure
 
 ```text
 /
 ├── frontend/       # React app (Vite)
-└── backend/        # Node.js API server
+├── backend/        # Node.js API server
+└── desktop/        # Electron + React + TypeScript launcher
 ```
 
 ## Routes (Frontend)
@@ -190,4 +194,74 @@ http://localhost:8000/api/v1/user/login # used for login, sends back token, stat
 http://localhost:8000/api/v1/user/signup # used for creating a user, sends back the same things (token, status, role). Requires name, email, password, role. Role should be employee, admin, or head.
 
 http://localhost:8000/api/v1/user/check-login # used to check whether the user is logged in or logged out. Requires the token that you stored at the time of login or signup. Returns a bool for whether the user is logged in, and the role.
+
+http://localhost:8000/api/v1/user/desktop-code # authenticated, creates a single-use 60-second desktop code
+
+http://localhost:8000/api/v1/user/desktop-token # exchanges the single-use code for a desktop session
+```
+
+## 12. Electron desktop launcher
+
+Install and run the frontend and backend first. In a third terminal:
+
+```bash
+cd desktop
+npm install
+npm run dev
+```
+
+The first time the launcher opens, choose the `.exe` for the installed packaged
+VR simulation. This is the game executable, not Unreal Editor. The selection is
+remembered in Electron's user-data directory. After this one-time setup, the
+launcher does not display the executable path or offer an application-change
+control; it silently uses the saved executable on subsequent starts.
+
+Click **Sign in**. The launcher opens the web login in the default system
+browser. After authentication, the browser returns a one-time code to the
+launcher, which stores its private session encrypted with Electron
+`safeStorage`, writes the Unreal handoff JSON, and starts the chosen executable.
+On later launcher starts, a valid saved session and remembered executable path
+cause the already-installed VR application to start automatically, with no
+browser login round-trip. The launcher remains visible after the VR process
+starts so the user can log out at any time. Logging out closes the VR process
+tree started by the launcher and removes the authentication files.
+
+By default the handoff is `ue-session.json` in Electron's user-data directory.
+The launcher passes its absolute path to Unreal as:
+
+```text
+-AuthSessionPath=C:\absolute\path\to\ue-session.json
+```
+
+The Unreal application should read that command-line value and parse:
+
+```json
+{
+  "userId": "user-id",
+  "accessToken": "jwt",
+  "isLoggedIn": true
+}
+```
+
+Set `VR_SESSION_PATH` to an absolute writable path if the Unreal integration
+requires a fixed location. The handoff contains a bearer token and must not be
+committed, logged, or placed in the application installation directory. It is
+removed on logout. The Electron-only `session.enc` remains encrypted and is not
+intended for Unreal to read.
+
+Configuration defaults are documented in `desktop/.env.example`. For a Windows
+NSIS installer, run on Windows:
+
+```bash
+cd desktop
+npm run build
+```
+
+Running the NSIS installer again clears prior launcher sessions, saved VR paths,
+and handoff files. Uninstalling the launcher also removes its application data.
+
+For a local unpacked build without producing an installer:
+
+```bash
+npm run build:dir
 ```

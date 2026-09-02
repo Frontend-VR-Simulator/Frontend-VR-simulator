@@ -1,14 +1,34 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import axios from "axios";
 
 import { VirtualKeyboard } from "./virtual-keyboard";
 
+function readDesktopRequest() {
+  const params = new URLSearchParams(window.location.search);
+  const redirectUri = params.get("redirect_uri");
+  const state = params.get("state");
+  if (!redirectUri) return { redirect: null, error: "" };
+
+  try {
+    const parsed = new URL(redirectUri);
+    const validHost = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
+    if (parsed.protocol !== "http:" || !validHost || parsed.pathname !== "/callback" || parsed.search || parsed.hash || !state) {
+      throw new Error("Invalid desktop sign-in request.");
+    }
+    return { redirect: { redirectUri: parsed.toString(), state }, error: "" };
+  } catch {
+    return { redirect: null, error: "Invalid desktop sign-in request. Please return to the desktop app and try again." };
+  }
+}
+
 const LoginPage = () => {
+  const [desktopRequest] = useState(readDesktopRequest);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(desktopRequest.error);
+  const desktopRedirect = desktopRequest.redirect;
 
   /* 'email' | 'password' | null */
   const [activeField, setActiveField] = useState(null);
@@ -55,9 +75,19 @@ const LoginPage = () => {
         `${import.meta.env.VITE_API_URL}/user/login`,
         { email, password },
       );
-    
-      
-      
+
+      if (desktopRedirect) {
+        const token = response.data?.data?.token;
+        const codeResponse = await axios.post(
+          `${import.meta.env.VITE_API_URL}/user/desktop-code`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const callback = new URL(desktopRedirect.redirectUri);
+        callback.searchParams.set("code", codeResponse.data.code);
+        callback.searchParams.set("state", desktopRedirect.state);
+        window.location.assign(callback.toString());
+      }
     } catch (error) {
       console.error("Login request failed:", error);
       if (error.response) {

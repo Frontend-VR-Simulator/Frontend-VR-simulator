@@ -16,7 +16,7 @@ app.set("trust proxy", 1);
 // Middleware
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
   })
 );
@@ -90,5 +90,4 @@ const startServer = async () => {
 };
 
 startServer();
-
 
