@@ -17,7 +17,7 @@ const migrationPath = path.join(
 const sql = fs.readFileSync(migrationPath, "utf8");
 
 const client = new Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || process.env.DB_URL,
 });
 
 try {

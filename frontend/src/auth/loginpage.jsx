@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import axios from "axios";
 
 import { VirtualKeyboard } from "./virtual-keyboard";
+import { API_BASE_URL } from "../config/api";
 
 function readDesktopRequest() {
   const params = new URLSearchParams(window.location.search);
@@ -21,7 +22,7 @@ function readDesktopRequest() {
   }
 }
 
-const LoginPage = () => {
+const LoginPage = ({ onLogin }) => {
   const [desktopRequest] = useState(readDesktopRequest);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -66,20 +67,20 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-      if (!gmailRegex.test(email)) {
-  setError("Please enter a valid Gmail address.");
-  return;
-}
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(email)) {
+        setError("Please enter a valid email address.");
+        return;
+      }
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/user/login`,
+        `${API_BASE_URL}/user/login`,
         { email, password },
       );
 
       if (desktopRedirect) {
         const token = response.data?.data?.token;
         const codeResponse = await axios.post(
-          `${import.meta.env.VITE_API_URL}/user/desktop-code`,
+          `${API_BASE_URL}/user/desktop-code`,
           {},
           { headers: { Authorization: `Bearer ${token}` } },
         );
@@ -87,6 +88,8 @@ const LoginPage = () => {
         callback.searchParams.set("code", codeResponse.data.code);
         callback.searchParams.set("state", desktopRedirect.state);
         window.location.assign(callback.toString());
+      } else {
+        onLogin?.(response.data.data);
       }
     } catch (error) {
       console.error("Login request failed:", error);

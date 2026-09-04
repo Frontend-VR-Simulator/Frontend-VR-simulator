@@ -117,7 +117,10 @@ Now create the database table automatically by running:
 npm run db:setup
 ```
 
-This runs a script that creates the `users` table for you, with these columns:  `id` `name`, `email`, `role`, and `password` and `created_at`. You do **not** need to create this table by hand in the Supabase dashboard — the script does it. The `role` column only accepts one of three values: `admin`, `head`, or `employee`.
+This runs the database migration for users, invitations, trainer assignments,
+batches, and training sessions. The supported roles are `admin`, `head`,
+`trainer`, and `trainee`. On an older installation, `employee` is migrated to
+`trainee`.
 
 You donot need to call this command every time you run the backend just first time when you are configuring Backend
 
@@ -186,19 +189,56 @@ response.data.data.token
 
 ## 11. All Endpoints
 
-There are 3 URLs:
+Main API endpoints:
 
 ```bash
 http://localhost:8000/api/v1/user/login # used for login, sends back token, status, and role. Requires email and password.
 
-http://localhost:8000/api/v1/user/signup # used for creating a user, sends back the same things (token, status, role). Requires name, email, password, role. Role should be employee, admin, or head.
-
-http://localhost:8000/api/v1/user/check-login # used to check whether the user is logged in or logged out. Requires the token that you stored at the time of login or signup. Returns a bool for whether the user is logged in, and the role.
+http://localhost:8000/api/v1/user/check-login # checks a stored login token and returns login status and role
 
 http://localhost:8000/api/v1/user/desktop-code # authenticated, creates a single-use 60-second desktop code
 
 http://localhost:8000/api/v1/user/desktop-token # exchanges the single-use code for a desktop session
+
+http://localhost:8000/api/v1/user/dashboard # returns the signed-in role's directory, roster, or learning metrics
+
+http://localhost:8000/api/v1/user/invitations # admin-only trainer/trainee invitation creation
+
+http://localhost:8000/api/v1/user/invitations/accept # activates an invited account
+
+http://localhost:8000/api/v1/user/training-sessions # records a completed VR session and score
 ```
+
+### Role dashboards
+
+- Site/dev admins can invite other site admins and organization heads and view
+  the complete organization.
+- Heads can invite trainers and trainees, assign a trainee to a trainer, and
+  place a trainee in a batch.
+- Trainers see their assigned trainees, session counts, and average scores.
+- Trainees see total sessions, learning time, average/best scores, and a
+  progress chart.
+
+Invitation delivery uses the `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+`SMTP_PASS`, and `SMTP_FROM` backend settings. When SMTP is not configured, the
+admin UI returns a copyable invitation URL instead of claiming email was sent.
+
+There is no public registration URL. Create the first site/dev administrator
+manually after configuring `backend/.env`:
+
+```bash
+cd backend
+ADMIN_NAME="Site Admin" \
+ADMIN_EMAIL="admin@example.com" \
+ADMIN_PASSWORD="replace-with-a-secure-password" \
+npm run admin:create
+```
+
+After logging in, the site admin invites additional admins or organization
+heads from the admin panel. The form collects only name, email, and role. The
+recipient proves ownership of the email by opening the invitation link and then
+creates their own password. Heads use the same no-password invitation flow for
+trainers and trainees.
 
 ## 12. Electron desktop launcher
 

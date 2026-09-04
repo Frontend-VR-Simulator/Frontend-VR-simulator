@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.vercel/
 
 # Build output
 dist/
@@ -32,3 +33,5 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+.vercel
+.env*

@@ -5,7 +5,10 @@ import supabase from "../config/supabaseConfig.js";
 import ApiResponse from "../utility/ApiResponse.js";
 
 const CODE_TTL_MS = 60_000;
-const desktopCodes = new Map();
+
+function hashCode(code) {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
 
 function readBearerToken(req) {
   const header = req.headers.authorization;
@@ -15,9 +18,6 @@ function readBearerToken(req) {
 
 export const createDesktopCode = async (req, res) => {
   try {
-    for (const [code, value] of desktopCodes) {
-      if (value.expiresAt <= Date.now()) desktopCodes.delete(code);
-    }
     const token = readBearerToken(req);
     if (!token) {
       return res.status(401).json(new ApiResponse(401, "error", "Authentication token is required"));
@@ -35,12 +35,17 @@ export const createDesktopCode = async (req, res) => {
     }
 
     const code = crypto.randomBytes(32).toString("base64url");
-    desktopCodes.set(code, {
-      userId: user.id,
+    const { error: codeError } = await supabase.from("desktop_auth_codes").insert({
+      code_hash: hashCode(code),
+      user_id: user.id,
       email: user.email,
-      accessToken: token,
-      expiresAt: Date.now() + CODE_TTL_MS,
+      access_token: token,
+      expires_at: new Date(Date.now() + CODE_TTL_MS).toISOString(),
     });
+    if (codeError) {
+      console.error("Desktop code storage failed:", codeError.message);
+      return res.status(500).json(new ApiResponse(500, "error", "Could not start desktop sign-in"));
+    }
 
     return res.status(200).json({ code });
   } catch (error) {
@@ -48,23 +53,27 @@ export const createDesktopCode = async (req, res) => {
   }
 };
 
-export const exchangeDesktopToken = (req, res) => {
+export const exchangeDesktopToken = async (req, res) => {
   const { code } = req.body ?? {};
   if (typeof code !== "string" || !code) {
     return res.status(400).json(new ApiResponse(400, "error", "A desktop code is required"));
   }
 
-  // Delete before validation so every presented code is single-use.
-  const session = desktopCodes.get(code);
-  desktopCodes.delete(code);
+  // Atomic delete-and-return keeps the code single-use across serverless instances.
+  const { data: session, error } = await supabase
+    .from("desktop_auth_codes")
+    .delete()
+    .eq("code_hash", hashCode(code))
+    .select("user_id, email, access_token, expires_at")
+    .maybeSingle();
 
-  if (!session || session.expiresAt <= Date.now()) {
+  if (error || !session || new Date(session.expires_at).getTime() <= Date.now()) {
     return res.status(400).json(new ApiResponse(400, "error", "Desktop code is unknown, used, or expired"));
   }
 
   return res.status(200).json({
-    userId: session.userId,
+    userId: session.user_id,
     email: session.email,
-    accessToken: session.accessToken,
+    accessToken: session.access_token,
   });
 };
