@@ -1,7 +1,8 @@
+
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-import supabase from "../config/supabaseConfig.js";
+import pool from "../config/postgreesConfig.js";
 import ApiResponse from "../utility/ApiResponse.js";
 
 export const login = async (req, res) => {
@@ -26,28 +27,18 @@ export const login = async (req, res) => {
     // 2. Normalize email
     const normalizedEmail = email.trim().toLowerCase();
 
-    // 3. Find user
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("id, name, email, password, role")
-      .eq("email", normalizedEmail)
-      .maybeSingle();
+    // 3. Find user in PostgreSQL
+    const result = await pool.query(
+      `
+        SELECT id, name, email, password, role
+        FROM users
+        WHERE email = $1
+        LIMIT 1
+      `,
+      [normalizedEmail]
+    );
 
-    if (error) {
-      console.error("Login database error:", error);
-
-      return res.status(500).json(
-        new ApiResponse(
-          500,
-          "error",
-          "Servers are down, try again later",
-          {
-            userAllowed: false,
-            role: null,
-          }
-        )
-      );
-    }
+    const user = result.rows[0];
 
     // 4. User doesn't exist
     if (!user) {
@@ -113,7 +104,7 @@ export const login = async (req, res) => {
     );
 
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("Login database error:", error);
 
     return res.status(500).json(
       new ApiResponse(
@@ -128,3 +119,4 @@ export const login = async (req, res) => {
     );
   }
 };
+

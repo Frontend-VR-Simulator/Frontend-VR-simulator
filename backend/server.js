@@ -1,9 +1,10 @@
+
 import "dotenv/config";
 
 import express from "express";
 import cors from "cors";
 
-import supabase from "./src/config/supabaseConfig.js";
+import pool from "./src/config/postgreesConfig.js";
 import userRoute from "./src/route/userRoutes.js";
 
 const app = express();
@@ -16,15 +17,24 @@ app.set("trust proxy", 1);
 // Middleware
 const allowedOrigins = new Set([
   "http://localhost:5173",
-  ...(process.env.FRONTEND_URL || "").split(",").map((value) => value.trim()).filter(Boolean),
+  ...(process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
 ]);
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
-    return callback(new Error("Origin is not allowed by CORS"));
-  },
-  credentials: true,
-}));
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Origin is not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 
@@ -57,24 +67,19 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Supabase connection test
-async function testSupabaseConnection() {
+// PostgreSQL connection test
+async function testPostgreSQLConnection() {
   try {
-    const { error } = await supabase
-      .from("users")
-      .select("id")
-      .limit(1);
+    const result = await pool.query(
+      "SELECT id FROM users LIMIT 1"
+    );
 
-    if (error) {
-      console.error("❌ Supabase connection failed:");
-      console.error(error.message);
-      return false;
-    }
+    console.log("✅ PostgreSQL connected successfully!");
+    console.log(`Users table accessible. Rows checked: ${result.rows.length}`);
 
-    console.log("✅ Supabase connected successfully!");
     return true;
   } catch (error) {
-    console.error("❌ Supabase connection failed:");
+    console.error("❌ PostgreSQL connection failed:");
     console.error(error.message);
     return false;
   }
@@ -83,7 +88,12 @@ async function testSupabaseConnection() {
 // Start server
 const startServer = async () => {
   try {
-    await testSupabaseConnection();
+    const connected = await testPostgreSQLConnection();
+
+    if (!connected) {
+      console.error("❌ Server startup stopped because PostgreSQL is unavailable.");
+      process.exit(1);
+    }
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
@@ -97,3 +107,4 @@ const startServer = async () => {
 if (!process.env.VERCEL) startServer();
 
 export default app;
+
