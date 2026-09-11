@@ -17,11 +17,24 @@ app.set("trust proxy", 1);
 // Middleware
 const allowedOrigins = new Set([
   "http://localhost:5173",
+
   ...(process.env.FRONTEND_URL || "")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean),
-]);
+
+  process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : null,
+
+  process.env.VERCEL_BRANCH_URL
+    ? `https://${process.env.VERCEL_BRANCH_URL}`
+    : null,
+
+  process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : null,
+].filter(Boolean));
 
 app.use(
   cors({
@@ -29,6 +42,9 @@ app.use(
       if (!origin || allowedOrigins.has(origin)) {
         return callback(null, true);
       }
+
+      console.error("Blocked CORS origin:", origin);
+      console.error("Allowed origins:", [...allowedOrigins]);
 
       return callback(new Error("Origin is not allowed by CORS"));
     },
