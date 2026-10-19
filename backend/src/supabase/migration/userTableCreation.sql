@@ -59,3 +59,71 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invitations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.training_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.desktop_auth_codes ENABLE ROW LEVEL SECURITY;
+
+-- VR results ingestion. A session is one results.json written by the VR app:
+-- either one room on its own or a complete run through every room.
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS external_id TEXT UNIQUE;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS session_type TEXT NOT NULL DEFAULT 'room';
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS room_id TEXT;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS attempt INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS result TEXT NOT NULL DEFAULT 'Review';
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS critical_errors INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS rooms JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS recording_status TEXT NOT NULL DEFAULT 'Unavailable';
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS recording_path TEXT;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS recording_bytes BIGINT;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS recording_duration_seconds INTEGER;
+ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS raw_payload JSONB;
+ALTER TABLE training_sessions DROP CONSTRAINT IF EXISTS training_sessions_session_type_check;
+ALTER TABLE training_sessions ADD CONSTRAINT training_sessions_session_type_check CHECK (session_type IN ('room', 'complete'));
+ALTER TABLE training_sessions DROP CONSTRAINT IF EXISTS training_sessions_result_check;
+ALTER TABLE training_sessions ADD CONSTRAINT training_sessions_result_check CHECK (result IN ('Pass', 'Review', 'Fail'));
+ALTER TABLE training_sessions DROP CONSTRAINT IF EXISTS training_sessions_recording_status_check;
+ALTER TABLE training_sessions ADD CONSTRAINT training_sessions_recording_status_check CHECK (recording_status IN ('Processing', 'Ready', 'Unavailable'));
+CREATE INDEX IF NOT EXISTS training_sessions_trainee_idx ON training_sessions (trainee_id, completed_at);
+CREATE INDEX IF NOT EXISTS training_sessions_room_idx ON training_sessions (room_id);
+
+CREATE TABLE IF NOT EXISTS session_feedback (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL REFERENCES training_sessions(id) ON DELETE CASCADE,
+    author_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    body TEXT NOT NULL,
+    visibility TEXT NOT NULL DEFAULT 'learner' CHECK (visibility IN ('learner', 'private')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS session_feedback_session_idx ON session_feedback (session_id);
+
+-- A program assigns an ordered set of rooms to one batch (cohort) with a deadline.
+CREATE TABLE IF NOT EXISTS programs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    batch TEXT NOT NULL,
+    room_ids TEXT[] NOT NULL,
+    due_date DATE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS audit_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'platform',
+    actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    actor_label TEXT NOT NULL,
+    outcome TEXT NOT NULL DEFAULT 'Successful' CHECK (outcome IN ('Successful', 'In progress', 'Failed')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS audit_events_created_idx ON audit_events (created_at DESC);
+
+ALTER TABLE public.session_feedback ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.programs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_events ENABLE ROW LEVEL SECURITY;
+
+-- Private bucket for session recordings. The launcher uploads with a signed URL;
+-- the web app plays recordings through short-lived signed URLs.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('session-recordings', 'session-recordings', false)
+ON CONFLICT (id) DO NOTHING;

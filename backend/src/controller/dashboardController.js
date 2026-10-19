@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import nodemailer from "nodemailer";
 
 import supabase from "../config/supabaseConfig.js";
+import { recordAudit } from "../utility/audit.js";
 
 const publicUserColumns = "id, name, email, role, employee_id, batch, trainer_id, created_at";
 
@@ -82,6 +83,8 @@ export async function createInvitation(req, res) {
   let emailSent = false;
   try { emailSent = await sendInvitationEmail(data, inviteUrl); }
   catch (error) { console.error("Invitation email failed:", error.message); }
+  const { data: inviter } = await supabase.from("users").select("name").eq("id", req.user.userId).maybeSingle();
+  await recordAudit({ event: `Invitation sent · ${data.name}, ${data.role}`, category: "access", actorId: req.user.userId, actorLabel: inviter?.name });
   return res.status(201).json({ invitation: data, inviteUrl, emailSent });
 }
 
@@ -102,6 +105,7 @@ export async function acceptInvitation(req, res) {
   });
   if (error) return res.status(409).json({ message: "This invitation could not be accepted." });
   await supabase.from("invitations").update({ accepted_at: new Date().toISOString() }).eq("id", invitation.id);
+  await recordAudit({ event: `Account activated · ${invitation.name}, ${invitation.role}`, category: "access", actorLabel: invitation.name });
   return res.status(201).json({ message: "Account created. You can now sign in." });
 }
 

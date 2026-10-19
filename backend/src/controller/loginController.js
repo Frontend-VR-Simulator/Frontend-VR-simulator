@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 
 import supabase from "../config/supabaseConfig.js";
 import ApiResponse from "../utility/ApiResponse.js";
+import { recordAudit } from "../utility/audit.js";
 
 export const login = async (req, res) => {
   try {
@@ -95,6 +96,8 @@ export const login = async (req, res) => {
         expiresIn: "2h",
       }
     );
+
+    await recordAudit({ event: "User signed in", category: "auth", actorId: user.id, actorLabel: user.name });
 
     // 7. Return JWT in response
     return res.status(200).json(

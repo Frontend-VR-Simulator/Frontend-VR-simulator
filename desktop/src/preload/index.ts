@@ -13,10 +13,18 @@ const api = {
   getVrApp: (): Promise<string | null> => ipcRenderer.invoke("get-vr-app"),
   chooseVrApp: (): Promise<string | null> => ipcRenderer.invoke("choose-vr-app"),
   launchVrApp: (): Promise<void> => ipcRenderer.invoke("launch-vr-app"),
+  getSyncStatus: (): Promise<SyncStatus> => ipcRenderer.invoke("get-sync-status"),
+  syncResults: (): Promise<void> => ipcRenderer.invoke("sync-results"),
+  onSyncStatus: (callback: (status: SyncStatus) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, value: SyncStatus) => callback(value);
+    ipcRenderer.on("sync-status", listener);
+    return () => ipcRenderer.removeListener("sync-status", listener);
+  },
 };
 
 contextBridge.exposeInMainWorld("api", api);
 
 export type Session = { userId: string; email: string; isLoggedIn: true };
+export type SyncStatus = { pending: number; syncing: boolean; lastUploadedAt: string | null; error?: string };
 export type SessionEvent = { session: Session | null; error?: string };
 export type DesktopApi = typeof api;

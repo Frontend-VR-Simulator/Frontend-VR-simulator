@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { Session } from "../preload";
+import type { Session, SyncStatus } from "../preload";
 import "./style.css";
 
 function App() {
@@ -8,14 +8,18 @@ function App() {
   const [vrPath, setVrPath] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState("");
+  const [sync, setSync] = useState<SyncStatus | null>(null);
 
   useEffect(() => {
     void Promise.all([window.api.getSession(), window.api.getVrApp()]).then(([current, path]) => {
       setSession(current); setVrPath(path);
     });
-    return window.api.onSessionChanged(({ session: next, error: nextError }) => {
+    void window.api.getSyncStatus().then(setSync);
+    const offSync = window.api.onSyncStatus(setSync);
+    const offSession = window.api.onSessionChanged(({ session: next, error: nextError }) => {
       setSession(next); setWaiting(false); setError(nextError ?? "");
     });
+    return () => { offSync(); offSession(); };
   }, []);
 
   async function chooseVrApp() {
@@ -54,6 +58,13 @@ function App() {
       {session ? <div className="session">
         <div><span>Email</span><strong>{session.email}</strong></div>
         <div><span>Logged in</span><strong className="yes">true</strong></div>
+        <div className="sync">
+          <span>VR results</span>
+          <strong>{sync?.syncing ? "Uploading…" : sync?.pending ? `${sync.pending} waiting to upload` : "All uploaded"}</strong>
+          {sync?.lastUploadedAt && <small>Last upload {new Date(sync.lastUploadedAt).toLocaleString()}</small>}
+          {sync?.error && <small className="sync-error">{sync.error}</small>}
+          {!!sync?.pending && !sync.syncing && <button className="link" onClick={() => run(window.api.syncResults)}>Retry now</button>}
+        </div>
         <button onClick={() => run(window.api.launchVrApp)}>Launch VR simulation</button>
         <button className="secondary" onClick={() => run(window.api.logout)}>Log out</button>
       </div> : waiting ? <div className="actions">

@@ -17,9 +17,11 @@ system browser and starts an installed, packaged Unreal Engine VR application.
 
 | Route | Purpose |
 | --- | --- |
-| `/` | Login page (the only route) |
-
-There is currently only one route. After a successful login, the app does not navigate anywhere else — it stays on the same page.
+| `#/landing` | Public landing page |
+| `#/login` (or `/login`) | Sign in; `/login?redirect_uri=…&state=…` is the desktop launcher hand-off |
+| `/?invite=<token>` | Accept an invitation and set a password |
+| `#/<workspace>/<page>` | Role workspace: `learner` (trainee), `trainer`, `manager` (head), `admin` |
+| `#/session/<id>` | Session review with recording, step results and feedback |
 
 ## 1. Requirements
 
@@ -94,6 +96,8 @@ This file is much simpler — it just needs to know where your backend is runnin
 ```env
 # The URL where your backend server is running
 VITE_API_URL=http://localhost:8000/api/v1
+# Client company name shown in the workspace
+VITE_COMPANY_NAME=Meridian Pharmaceuticals
 ```
 
 > ⚠️ **Never commit your `.env` files or share your Supabase secret key / JWT secret / database connection string publicly.** These give elevated access to your database and to signed-in sessions.
@@ -208,6 +212,26 @@ http://localhost:8000/api/v1/user/invitations/accept # activates an invited acco
 
 http://localhost:8000/api/v1/user/training-sessions # records a completed VR session and score
 ```
+
+VR results, analytics and recordings (`/api/v1/vr`):
+
+```bash
+GET  /api/v1/vr/workspace                              # role-scoped users, sessions, feedback, programs (and audit/health for admins)
+POST /api/v1/vr/results                                # results.json from the desktop launcher; idempotent on sessionId
+POST /api/v1/vr/sessions/:id/recording/upload-url      # signed Supabase Storage upload URL for the session video
+POST /api/v1/vr/sessions/:id/recording/complete        # confirms the upload; recording becomes Ready
+POST /api/v1/vr/sessions/:id/recording/unavailable     # the launcher could not find the video
+GET  /api/v1/vr/sessions/:id/recording                 # one-hour signed playback URL
+POST /api/v1/vr/sessions/:id/feedback                  # trainer/head/admin feedback; marks the session reviewed
+POST /api/v1/vr/programs                               # head/admin assigns rooms to a batch with a deadline
+```
+
+The end-to-end flow (launcher, `results.json`, upload, analytics) and the
+`results.json` format are documented in `desktop/README.md` under
+"VR results hand-off". Run `npm run db:setup` again after updating: it adds the
+new session columns, the feedback, programs and audit tables, and the private
+`session-recordings` storage bucket. On the Supabase free plan the global file
+size limit is 50 MB; raise it (Storage settings) for full-length session videos.
 
 ### Role dashboards
 

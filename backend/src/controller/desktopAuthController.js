@@ -34,6 +34,9 @@ export const createDesktopCode = async (req, res) => {
       return res.status(401).json(new ApiResponse(401, "error", "User could not be authenticated"));
     }
 
+    // Codes that were never exchanged still hold a live access token, so clear them out.
+    await supabase.from("desktop_auth_codes").delete().lt("expires_at", new Date().toISOString());
+
     const code = crypto.randomBytes(32).toString("base64url");
     const { error: codeError } = await supabase.from("desktop_auth_codes").insert({
       code_hash: hashCode(code),

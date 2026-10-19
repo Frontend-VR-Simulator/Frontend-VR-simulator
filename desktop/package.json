@@ -8,7 +8,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build && electron-builder --win nsis",
     "build:dir": "electron-vite build && electron-builder --dir",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/results.test.mjs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
@@ -29,9 +30,18 @@
   "build": {
     "appId": "com.vrsimulation.launcher",
     "productName": "VR Simulation Launcher",
-    "directories": { "output": "dist" },
-    "files": ["out/**/*", "package.json"],
-    "win": { "target": ["nsis"] },
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,

@@ -4,13 +4,16 @@ import { createServer, type Server } from "node:http";
 import { access, chmod, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electron";
+import { createResultsSync, type SyncStatus } from "./results";
 
 type StoredSession = { userId: string; email: string; accessToken: string };
 type PublicSession = { userId: string; email: string; isLoggedIn: true };
 type Settings = { vrExecutablePath?: string };
 
-const WEB_URL = process.env.WEB_URL ?? "http://localhost:5173";
-const API_URL = process.env.API_URL ?? "http://localhost:8000/api/v1/user";
+// A runtime environment variable wins, then the value built in from desktop/.env.
+const WEB_URL = process.env.WEB_URL ?? import.meta.env.WEB_URL ?? "http://localhost:5173";
+const API_URL = process.env.API_URL ?? import.meta.env.API_URL ?? "http://localhost:8000/api/v1/user";
+const VR_API_URL = process.env.VR_API_URL ?? import.meta.env.VR_API_URL ?? API_URL.replace(/\/user\/?$/, "/vr");
 const AUTH_TIMEOUT_MS = 120_000;
 
 let mainWindow: BrowserWindow | null = null;
@@ -25,6 +28,18 @@ const userDataPath = () => app.getPath("userData");
 const encryptedSessionPath = () => path.join(userDataPath(), "session.enc");
 const ueSessionPath = () => process.env.VR_SESSION_PATH ?? path.join(userDataPath(), "ue-session.json");
 const settingsPath = () => path.join(userDataPath(), "settings.json");
+// Passed to the VR application as -ResultsPath. It writes one results-<sessionId>.json
+// per session into this file's folder; the fixed name itself is still accepted.
+const resultsPath = () => process.env.VR_RESULTS_PATH ?? path.join(userDataPath(), "results", "results.json");
+
+const resultsSync = createResultsSync({
+  resultsPath,
+  dataDir: userDataPath,
+  apiUrl: VR_API_URL,
+  getCredentials: () => session ? { userId: session.userId, accessToken: session.accessToken } : null,
+  onStatus: (status: SyncStatus) => mainWindow?.webContents.send("sync-status", status),
+  onAuthExpired: () => void clearSession("Your sign-in has expired. Sign in again to upload pending VR results."),
+});
 
 function publicSession(): PublicSession | null {
   return session ? { userId: session.userId, email: session.email, isLoggedIn: true } : null;
@@ -63,12 +78,29 @@ async function persistSession(value: StoredSession) {
   }, null, 2));
 }
 
+async function clearSession(message?: string) {
+  session = null;
+  await Promise.all([rm(encryptedSessionPath(), { force: true }), rm(ueSessionPath(), { force: true })]);
+  notifySession(message);
+}
+
+// Tokens expire; a restored session is only kept if the API still accepts it.
+async function isTokenRejected(accessToken: string) {
+  try {
+    const response = await fetch(`${API_URL}/check-login`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } });
+    return response.status === 401;
+  } catch {
+    return false;
+  }
+}
+
 async function restoreSession() {
   try {
     if (!safeStorage.isEncryptionAvailable()) return;
     const encrypted = await readFile(encryptedSessionPath());
     const parsed = JSON.parse(safeStorage.decryptString(encrypted)) as StoredSession;
     if (!parsed.userId || !parsed.email || !parsed.accessToken) throw new Error("Invalid session");
+    if (await isTokenRejected(parsed.accessToken)) throw new Error("Expired session");
     session = parsed;
     await persistSession(parsed);
   } catch {
@@ -96,7 +128,7 @@ async function launchVrApp() {
     return;
   }
   await access(settings.vrExecutablePath);
-  const child = spawn(settings.vrExecutablePath, [`-AuthSessionPath=${ueSessionPath()}`], {
+  const child = spawn(settings.vrExecutablePath, [`-AuthSessionPath=${ueSessionPath()}`, `-ResultsPath=${resultsPath()}`], {
     cwd: path.dirname(settings.vrExecutablePath),
     detached: true,
     stdio: "ignore",
@@ -168,6 +200,7 @@ async function startLogin() {
       session = await exchangeCode(code);
       await persistSession(session);
       notifySession();
+      void resultsSync.flush();
       try {
         await launchVrApp();
       } catch (error) {
@@ -188,7 +221,9 @@ async function startLogin() {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Could not start the sign-in callback.");
   pendingTimer = setTimeout(() => cancelPendingLogin("Sign-in timed out. Please try again."), AUTH_TIMEOUT_MS);
-  const loginUrl = new URL("/login", WEB_URL);
+  // The web app reads redirect_uri/state from the query on any path; "/" needs no
+  // SPA rewrite on the host, whereas "/login" returns 404 on a plain static deploy.
+  const loginUrl = new URL("/", WEB_URL);
   loginUrl.searchParams.set("redirect_uri", `http://127.0.0.1:${address.port}/callback`);
   loginUrl.searchParams.set("state", state);
   await shell.openExternal(loginUrl.toString());
@@ -201,9 +236,7 @@ function registerIpc() {
   ipcMain.handle("logout", async () => {
     cancelPendingLogin();
     await stopVrApp();
-    session = null;
-    await Promise.all([rm(encryptedSessionPath(), { force: true }), rm(ueSessionPath(), { force: true })]);
-    notifySession();
+    await clearSession();
   });
   ipcMain.handle("get-vr-app", async () => (await loadSettings()).vrExecutablePath ?? null);
   ipcMain.handle("choose-vr-app", async () => {
@@ -217,6 +250,8 @@ function registerIpc() {
     return result.filePaths[0];
   });
   ipcMain.handle("launch-vr-app", launchVrApp);
+  ipcMain.handle("get-sync-status", () => resultsSync.getStatus());
+  ipcMain.handle("sync-results", () => resultsSync.flush());
 }
 
 function createWindow() {
@@ -258,6 +293,11 @@ app.whenReady().then(async () => {
   await restoreSession();
   registerIpc();
   createWindow();
+  try {
+    await resultsSync.start();
+  } catch (error) {
+    notifySession(error instanceof Error ? `VR results cannot be watched: ${error.message}` : "VR results cannot be watched.");
+  }
   if (session) {
     mainWindow?.webContents.once("did-finish-load", async () => {
       try {
@@ -278,4 +318,7 @@ app.on("window-all-closed", () => {
   // Remain alive while VR runs so a reopened launcher can log out and stop it.
   if (process.platform !== "darwin" && !vrProcess) app.quit();
 });
-app.on("before-quit", () => cancelPendingLogin());
+app.on("before-quit", () => {
+  cancelPendingLogin();
+  resultsSync.stop();
+});

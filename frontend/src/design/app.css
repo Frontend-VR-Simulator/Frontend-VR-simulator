@@ -1,0 +1,17 @@
+/* Additions to the VR Pharma design for states the static prototype did not have. */
+.login-error,.login-success,.form-notice{font-size:12px;border-radius:10px;padding:10px 12px;margin:16px 0 0;overflow-wrap:anywhere}
+.login-error,.form-notice.error{background:light-dark(#f4e7e9,#472129);color:light-dark(#6d101d,#ff9caa);border:1px solid color-mix(in srgb,var(--red) 35%,transparent)}
+.login-success,.form-notice{background:light-dark(#e5f5f2,#15352f);color:light-dark(#0f6e57,#64e9c5);border:1px solid color-mix(in srgb,var(--mint) 35%,transparent)}
+.load-state{min-height:100vh;display:grid;place-items:center;align-content:center;gap:14px;text-align:center;padding:20px}
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.player video{z-index:3}
+.player-poster.no-video{background:linear-gradient(#0c151ce2,#0c151cef),url('assets/recording-scene.jpg') center/cover}
+.video-box video{position:absolute;inset:0;width:100%;height:100%;background:#000;z-index:2}
+a.video-poster{display:flex}
+a.attempt-card{display:block}
+.room-picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;max-height:220px;overflow:auto;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2)}
+.room-picks .check{font-size:12px}
+.payload{overflow:auto;max-height:50vh;background:#080f17;border:1px solid #37424d;padding:13px;border-radius:9px;color:#e8d875;font-size:11px}
+.modal{max-height:calc(100vh - 40px);overflow:auto}
+.data-table tr.clickable:focus-visible td{background:#ffffff0d}
+@media(max-width:640px){.room-picks{grid-template-columns:1fr}}
