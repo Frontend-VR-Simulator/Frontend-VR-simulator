@@ -59,7 +59,7 @@ export default function LearnerHome() {
   const latestNoteSession = latestNote && model.sessionById.get(latestNote.sessionId);
 
   return <>
-    <Heading title={`${greeting()}, ${me.name.split(" ")[0]}`} description={`${longToday()} · ${me.batch ? `Batch ${me.batch}` : "Trainee"}${model.trainer ? ` · Trainer ${model.trainer.name}` : ""}`} action={<a className="btn ghost sm" href="#/learner/progress">My progress <Icon name="arrow" /></a>} eyebrow="LEARNER DASHBOARD" />
+    <Heading title={`${greeting()}, ${me.name.split(" ")[0]}`} description={`${longToday()} · ${me.batch ? (/^batch\b/i.test(me.batch) ? me.batch : `Batch ${me.batch}`) : "Trainee"}${model.trainer ? ` · Trainer ${model.trainer.name}` : ""}`} action={<a className="btn ghost sm" href="#/learner/progress">My progress <Icon name="arrow" /></a>} eyebrow="LEARNER DASHBOARD" />
     <div className="kpis">
       <Kpi label="Assigned training" value={programs.length} detail={`${programs.length - open.length} completed`} icon="book" color="blue" />
       <Kpi label="Due this week" value={dueThisWeek.length} detail={dueThisWeek[0] ? `Next: ${dueThisWeek[0].title}, ${fmtShortDate(localDate(dueThisWeek[0].due_date))}` : "Nothing due in the next 7 days"} icon="calendar" color="yellow" />

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { PASS_MARK, roomById, roomCardOrder, roomCards, roomDetails, roomSteps } from "../content/catalog";
-import { Chip, Empty, Heading, Icon, Kpi, PctBar, RecordingChip, ResultChip, ScoreBar, Section, SkillsBlock, StepDetail } from "../components/ui";
+import { Chip, Empty, Heading, Icon, Kpi, PctBar, RecordingChip, RecordingSoon, ResultChip, ScoreBar, Section, SkillsBlock, StepDetail } from "../components/ui";
+import { RECORDINGS_LIVE } from "../config/features";
 import { assetUrl, colors, scoreColor } from "../lib/visual";
 import { useApp } from "../lib/context";
 import { errorMessage } from "../lib/api";
@@ -86,6 +87,7 @@ function NotesList({ notes }) {
 }
 
 function VideoStatus({ session }) {
+  if (!RECORDINGS_LIVE) return null;
   const duration = session.recordingSeconds || session.minutes * 60;
   return <section className="panel">
     <Section title="Video status" subtitle="Separate from assessment result" />
@@ -123,13 +125,13 @@ function RoomReview({ session }) {
       <Kpi label="Assessment score" value={`${session.score}%`} detail="VR-generated score" icon="target" color="yellow" />
       <Kpi label="Attempt" value={session.attempt} detail={`${plural(attempts.length, "attempt")} on record`} icon="rotate" color="blue" />
       <Kpi label="Critical errors" value={session.errors} detail="Errors recorded in session" icon="warning" color="orange" />
-      <Kpi label="Recording" value={session.recording} detail={session.recording === "Ready" ? "Video available" : session.recording === "Processing" ? "Video uploading" : "No video captured"} icon="video" color="purple" />
+      <Kpi label="Recording" value={RECORDINGS_LIVE ? session.recording : "Coming soon"} detail={!RECORDINGS_LIVE ? "Session video in a later release" : session.recording === "Ready" ? "Video available" : session.recording === "Processing" ? "Video uploading" : "No video captured"} icon="video" color="purple" />
     </div>
     <div className="review-grid">
       <div className="stack">
         <section className="panel">
-          <div className="section-head"><div><h3 className="panel-title">Session recording</h3><p>{session.date} · {session.minutes} minutes · {session.recording}</p></div><RecordingChip status={session.recording} /></div>
-          <div className="player">
+          <div className="section-head"><div><h3 className="panel-title">Session recording</h3><p>{session.date} · {session.minutes} minutes{RECORDINGS_LIVE ? ` · ${session.recording}` : ""}</p></div><RecordingChip status={session.recording} /></div>
+          {!RECORDINGS_LIVE ? <RecordingSoon image={room && roomCards[room.id]?.image} minHeight={300} /> : <div className="player">
             {recording.url ? <video {...recording.videoProps} /> : session.recording === "Ready" ? <>
               <div className="player-poster"><button className="player-action" aria-label="Play recording" onClick={() => recording.play()} disabled={recording.loading}><Icon name={recording.loading ? "clock" : "play"} className="ico-lg" /></button></div>
               <div className="player-overlay">
@@ -137,9 +139,9 @@ function RoomReview({ session }) {
                 <div className="player-meta"><span><Icon name="play" className="ico-sm" /> Session recording</span><span>{fmtSeconds(duration)}</span></div>
               </div>
             </> : <div className="player-poster no-video"><div style={{ textAlign: "center", padding: 20 }}><div style={{ color: "var(--yellow)" }}><Icon name={session.recording === "Processing" ? "clock" : "warning"} className="ico-lg" /></div><h3>{session.recording === "Processing" ? "Recording is uploading" : "Recording is unavailable"}</h3><p className="small">The assessment can still be reviewed without video.</p></div></div>}
-          </div>
-          {markers.length > 0 && session.recording === "Ready" && <div className="chapters"><span className="small muted">Jump to:</span>{markers.filter((marker) => marker.error).concat(markers.filter((marker) => !marker.error)).slice(0, 8).map((marker) => <button key={marker.label} className="chapter" onClick={() => recording.play(marker.at)}>{marker.error && <Icon name="warning" className="ico-sm" />} {marker.label.split(" · ")[0]} <em>{fmtSeconds(marker.at)}</em></button>)}</div>}
-          {session.recording === "Ready" && <div className="marker-legend">{[["Step change", "blue"], ["Error", "red"]].map(([name, color]) => <span key={name}><i className="legend-dot" style={{ "--color": colors[color] }} />{name}</span>)}</div>}
+          </div>}
+          {RECORDINGS_LIVE && markers.length > 0 && session.recording === "Ready" && <div className="chapters"><span className="small muted">Jump to:</span>{markers.filter((marker) => marker.error).concat(markers.filter((marker) => !marker.error)).slice(0, 8).map((marker) => <button key={marker.label} className="chapter" onClick={() => recording.play(marker.at)}>{marker.error && <Icon name="warning" className="ico-sm" />} {marker.label.split(" · ")[0]} <em>{fmtSeconds(marker.at)}</em></button>)}</div>}
+          {RECORDINGS_LIVE && session.recording === "Ready" && <div className="marker-legend">{[["Step change", "blue"], ["Error", "red"]].map(([name, color]) => <span key={name}><i className="legend-dot" style={{ "--color": colors[color] }} />{name}</span>)}</div>}
         </section>
         <div className="grid cols2even">
           <section className="panel">
@@ -175,7 +177,7 @@ function RoomReview({ session }) {
                 {summary}
                 {detail ? <StepDetail detail={detail[index]} issue={issue} /> : <>
                   <p>{issue ? `Procedural deviation: ${issue}` : step ? "Step completed within the assessment criteria." : "No result recorded for this step."}</p>
-                  <p className="tiny muted">{room?.name} · Step {index + 1}{step?.maxPoints ? ` · ${step.points ?? 0} of ${step.maxPoints} points` : ""}{step?.timestampSeconds != null ? ` · at ${fmtSeconds(step.timestampSeconds)} in the recording` : ""}</p>
+                  <p className="tiny muted">{room?.name} · Step {index + 1}{step?.maxPoints ? ` · ${step.points ?? 0} of ${step.maxPoints} points` : ""}{RECORDINGS_LIVE && step?.timestampSeconds != null ? ` · at ${fmtSeconds(step.timestampSeconds)} in the recording` : ""}</p>
                 </>}
               </details>;
             })}
@@ -213,6 +215,7 @@ function CompleteReview({ session }) {
     <div className="grid cols2even mb22">
       <section className="panel">
         <Section title="Session recording" subtitle={`${fmtMin(k.minutes)} · one recording for the whole run`} action={<RecordingChip status={session.recording} />} />
+        {!RECORDINGS_LIVE ? <RecordingSoon image={roomCards.gowning.image} /> : <>
         <div className={`video-box ${recording.url ? "playing" : ""}`} style={{ backgroundImage: `url('${assetUrl(roomCards.gowning.image)}')` }}>
           {recording.url ? <video {...recording.videoProps} /> : <>
             <button className="video-play" onClick={() => recording.play()} aria-label="Play recording" disabled={recording.loading}><Icon name={recording.loading ? "clock" : "play"} className="ico-lg" /></button>
@@ -220,6 +223,7 @@ function CompleteReview({ session }) {
           </>}
         </div>
         <div className="chapters">{chapters.filter((room) => room.recorded).map((room) => <button className="chapter" key={room.id} onClick={() => recording.play(room.at)}>{roomCardOrder.indexOf(room.id) + 1}. {roomById[room.id].name} <em>{fmtSeconds(room.at)}</em></button>)}</div>
+        </>}
       </section>
       <section className="panel">
         <Section title="Focus next" subtitle="The three lowest rooms in this run" />

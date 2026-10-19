@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PASS_MARK, roomById, roomCardOrder, roomCards } from "../../content/catalog";
-import { Empty, Heading, Icon, ResultChip, Thumb } from "../../components/ui";
+import { Empty, Heading, Icon, RecordingChip, ResultChip, Thumb } from "../../components/ui";
+import { RECORDINGS_LIVE } from "../../config/features";
 import { openOnKey } from "../../lib/interaction";
 import { useApp } from "../../lib/context";
 import { completeSummary } from "../../lib/model";
@@ -27,7 +28,7 @@ function RoomGroups() {
             const open = () => goto(`session/${session.id}`);
             return <tr className="clickable" key={session.id} tabIndex={0} onClick={open} onKeyDown={openOnKey(open)}>
               <td><b>Attempt {session.attempt}</b></td><td>{session.date}<div className="row-sub">{session.time}</div></td><td>{session.minutes} min</td><td><b>{session.score}%</b></td><td>{session.errors}</td><td><ResultChip result={session.result} /></td>
-              <td>{session.recording === "Ready" ? <span className="watch"><Icon name="play" className="ico-sm" /> Watch</span> : <span className="small muted">{session.recording}</span>}</td>
+              <td>{!RECORDINGS_LIVE ? <RecordingChip status={session.recording} /> : session.recording === "Ready" ? <span className="watch"><Icon name="play" className="ico-sm" /> Watch</span> : <span className="small muted">{session.recording}</span>}</td>
               <td className="pill-arrow"><Icon name="chevron" /></td>
             </tr>;
           })}</tbody>
@@ -58,7 +59,7 @@ function CompleteRuns() {
         return <div key={room.id} className={`strip-cell ${ok ? "ok" : ""}`} title={`${j + 1}. ${roomById[room.id].name}: ${room.recorded ? `${room.score}%` : "not recorded"}${room.errors ? `, ${room.errors} critical error${room.errors > 1 ? "s" : ""}` : ""}`}><span>{j + 1}</span><b>{room.recorded ? room.score : "–"}</b></div>;
       })}</div>
       <p className="tiny muted">Score per room in order (1 = {roomById[roomCardOrder[0]].name}). Highlighted rooms passed.</p>
-      <div className="flex gap8 mt12" style={{ flexWrap: "wrap" }}><a className="btn primary sm" href={`#/session/${session.id}`}>Combined results <Icon name="arrow" /></a>{session.recording === "Ready" && <a className="btn ghost sm" href={`#/session/${session.id}`}><Icon name="play" className="ico-sm" /> Watch recording</a>}</div>
+      <div className="flex gap8 mt12" style={{ flexWrap: "wrap" }}><a className="btn primary sm" href={`#/session/${session.id}`}>Combined results <Icon name="arrow" /></a>{RECORDINGS_LIVE && session.recording === "Ready" && <a className="btn ghost sm" href={`#/session/${session.id}`}><Icon name="play" className="ico-sm" /> Watch recording</a>}</div>
     </section>;
   });
 }

@@ -1,4 +1,4 @@
-# VR Simulation Launcher
+# SIMQO Launcher
 
 Electron desktop launcher for authenticating a user through the existing web
 login and starting an already-installed packaged Unreal Engine VR application.
@@ -62,13 +62,13 @@ npm run build
 The Windows installer is generated at:
 
 ```text
-dist/VR Simulation Launcher Setup 1.0.0.exe
+dist/SIMQO Launcher Setup 1.0.0.exe
 ```
 
 The unpacked Windows application is generated at:
 
 ```text
-dist/win-unpacked/VR Simulation Launcher.exe
+dist/win-unpacked/SIMQO Launcher.exe
 ```
 
 Send the `Setup.exe` file to the Windows user. The blockmap and YAML files are
@@ -114,7 +114,7 @@ The JSON structure is:
 On Windows, launcher data is normally stored under:
 
 ```text
-C:\Users\<WindowsUser>\AppData\Roaming\VR Simulation Launcher\
+C:\Users\<WindowsUser>\AppData\Roaming\SIMQO Launcher\
 ```
 
 Files used there:

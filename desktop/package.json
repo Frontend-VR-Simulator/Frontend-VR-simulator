@@ -29,7 +29,7 @@
   },
   "build": {
     "appId": "com.vrsimulation.launcher",
-    "productName": "VR Simulation Launcher",
+    "productName": "SIMQO Launcher",
     "directories": {
       "output": "dist"
     },

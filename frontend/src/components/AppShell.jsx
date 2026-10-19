@@ -27,7 +27,7 @@ export function AppShell({ page, children }) {
     <header className="app-top">
       <div className="flex gap12" style={{ alignItems: "center" }}>
         <button className="btn ghost icon-only mobile-toggle" aria-label="Open navigation" onClick={() => setOpen(!open)}><Icon name="menu" /></button>
-        <a href="#/landing" aria-label="VR Pharma home"><Logo /></a>
+        <a href="#/landing" aria-label="SIMQO home"><Logo /></a>
       </div>
       <div className="top-actions">
         <ThemeToggle />

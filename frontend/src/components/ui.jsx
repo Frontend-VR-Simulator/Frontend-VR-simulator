@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { icons } from "./icons";
 import { PASS_MARK } from "../content/catalog";
 import { assetUrl, colors } from "../lib/visual";
+import { RECORDINGS_LIVE } from "../config/features";
 
 const tone = (color) => colors[color] || color;
 const clamp = (value) => Math.max(0, Math.min(100, value));
@@ -11,7 +12,12 @@ export function Icon({ name, className = "" }) {
 }
 
 export function Logo() {
-  return <span className="brand"><span className="brand-mark">VR</span><span className="brand-label">PHARMA</span></span>;
+  return <span className="brand" aria-label="SIMQO"><span className="brand-word">SIM<span className="brand-accent">QO</span></span></span>;
+}
+
+// The company that owns the product.
+export function Owner({ className = "" }) {
+  return <span className={`owner-badge ${className}`}>by <img src={assetUrl("linchpin.png")} alt="Linchpin" /></span>;
 }
 
 export function PctBar({ value, color = "blue", tiny = false }) {
@@ -28,7 +34,14 @@ export function Chip({ children, color = "gray" }) {
 }
 
 export const ResultChip = ({ result }) => <Chip color={result === "Pass" ? "mint" : result === "Fail" ? "red" : "yellow"}>{result}</Chip>;
-export const RecordingChip = ({ status }) => <Chip color={status === "Ready" ? "blue" : status === "Processing" ? "purple" : "gray"}>{status}</Chip>;
+export const RecordingChip = ({ status }) => (RECORDINGS_LIVE
+  ? <Chip color={status === "Ready" ? "blue" : status === "Processing" ? "purple" : "gray"}>{status}</Chip>
+  : <Chip color="purple">Coming soon</Chip>);
+
+// Shown wherever session video would appear until recordings are enabled.
+export function RecordingSoon({ image, minHeight = 232 }) {
+  return <div className="video-box" style={{ minHeight, ...(image ? { backgroundImage: `url('${assetUrl(image)}')` } : {}) }}><div className="video-empty"><Icon name="video" className="ico-lg" /><b>Session recordings are coming soon</b><span>Every VR attempt will be recorded and linked to its assessment, with jump-to markers at each step and error. Results and step-by-step scores are already available.</span></div></div>;
+}
 
 export function Thumb({ image, alt = "Training room image" }) {
   return <img className="thumb" src={assetUrl(image)} alt={alt} loading="lazy" />;

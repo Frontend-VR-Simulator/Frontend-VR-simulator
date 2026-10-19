@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { resultsExample, resultsMapping } from "../../content/resultsContract";
-import { Avatar, Chip, Empty, Heading, Icon, Kpi, Modal, ModalHead, Prog, Section } from "../../components/ui";
+import { Avatar, Chip, Empty, Heading, Icon, Kpi, Modal, ModalHead, Prog, RecordingSoon, Section } from "../../components/ui";
+import { RECORDINGS_LIVE } from "../../config/features";
 import { colors } from "../../lib/visual";
 import { SearchInput } from "../../components/SessionsTable";
 import { matches } from "../../lib/interaction";
@@ -14,6 +15,7 @@ const SERVICE_COLORS = ["mint", "blue", "purple", "orange"];
 function useServices() {
   const { model } = useApp();
   return (model.integration?.services || []).map((service, index) => {
+    if (!RECORDINGS_LIVE && /^Recording/.test(service.name)) return { ...service, soon: true, label: "Coming soon", color: "gray", detail: "Session video arrives in a later release" };
     const healthy = service.health >= 95;
     return { ...service, label: healthy ? "Connected" : "Attention", color: healthy ? SERVICE_COLORS[index] : "orange" };
   });
@@ -35,7 +37,7 @@ const eventColor = (event) => (event.outcome === "Failed" ? "red" : event.outcom
 
 function ServiceHealth({ services }) {
   if (!services.length) return <Empty>Integration status is unavailable.</Empty>;
-  return services.map((service) => <div className="skill-item" key={service.name}><div className="progress-line"><span>{service.name}</span><Chip color={service.color}>{service.label}</Chip></div><Prog value={service.health} color={service.color} /></div>);
+  return services.map((service) => <div className="skill-item" key={service.name}><div className="progress-line"><span>{service.name}</span><Chip color={service.soon ? "purple" : service.color}>{service.label}</Chip></div>{!service.soon && <Prog value={service.health} color={service.color} />}</div>);
 }
 
 function JobList({ jobs, roomy = false }) {
@@ -53,9 +55,14 @@ export function AdminHome() {
     <Heading title="System overview" description="Monitor VR data ingestion, users, and recording processing." action={<a className="btn ghost sm" href="#/admin/integrations">Integration details <Icon name="arrow" /></a>} eyebrow="SYSTEM ADMINISTRATION" />
     <div className="kpis">
       <Kpi label="Active users" value={model.users.length} detail={`${plural(model.invitations.length, "pending invitation")}`} icon="users" color="blue" />
-      <Kpi label="Integrations healthy" value={`${services.filter((s) => s.label === "Connected").length} / ${services.length}`} detail={services.some((s) => s.label === "Attention") ? "A service needs attention" : "All services healthy"} icon="layers" color="yellow" />
+      <Kpi label="Integrations healthy" value={`${services.filter((s) => s.label === "Connected").length} / ${services.filter((s) => !s.soon).length}`} detail={services.some((s) => s.label === "Attention") ? "A service needs attention" : "All services healthy"} icon="layers" color="yellow" />
+      {RECORDINGS_LIVE ? <>
       <Kpi label="Video storage used" value={`${storagePct}%`} detail={storage ? `${fmtBytes(storage.usedBytes)} of ${fmtBytes(storage.quotaBytes)}` : "—"} icon="database" color="purple" />
       <Kpi label="Recording jobs" value={jobs.filter((job) => job.status !== "Ready").length} detail="Still uploading" icon="video" color="orange" />
+      </> : <>
+      <Kpi label="VR sessions ingested" value={model.sessions.length} detail="All time, from the VR launcher" icon="database" color="purple" />
+      <Kpi label="Session recordings" value="Soon" detail="Video arrives in a later release" icon="video" color="orange" />
+      </>}
     </div>
     <div className="grid cols2 mb22">
       <section className="panel"><Section title="Platform health" subtitle="Last 7 days of VR and recording events" /><ServiceHealth services={services} /></section>
@@ -64,7 +71,8 @@ export function AdminHome() {
       </section>
     </div>
     <div className="grid cols2">
-      <section className="panel"><Section title="Recording processing" subtitle="Media can arrive after assessment results" action={<a className="link" href="#/admin/recordings">All jobs <Icon name="arrow" /></a>} /><JobList jobs={jobs.slice(0, 6)} /></section>
+      {RECORDINGS_LIVE ? <section className="panel"><Section title="Recording processing" subtitle="Media can arrive after assessment results" action={<a className="link" href="#/admin/recordings">All jobs <Icon name="arrow" /></a>} /><JobList jobs={jobs.slice(0, 6)} /></section>
+        : <section className="panel"><Section title="Recording processing" subtitle="Session video pipeline" action={<Chip color="purple">Coming soon</Chip>} /><RecordingSoon /></section>}
       <section className="panel"><Section title="Recent events" subtitle="Activity log" action={<a className="link" href="#/admin/audit">Audit log <Icon name="arrow" /></a>} />
         {model.audit.length ? model.audit.slice(0, 6).map((event) => <div className="list-item" key={event.id}><span className="color-swatch" style={{ "--swatch": colors[eventColor(event)] }} /><div className="grow row-heading">{event.event}</div><span className="small muted nowrap">{fmtClock(event.created_at)}</span></div>) : <Empty>No events recorded yet.</Empty>}
       </section>
@@ -130,7 +138,8 @@ export function AdminRecordings() {
   const jobs = useJobs();
   return <>
     <Heading title="Recording jobs" description="Upload status for each VR session recording." eyebrow="MEDIA PIPELINE" />
-    <section className="panel"><Section title="Recording processing queue" subtitle={`${jobs.filter((job) => job.status !== "Ready").length} uploading · ${jobs.filter((job) => job.status === "Ready").length} ready`} /><JobList jobs={jobs} roomy /></section>
+    {RECORDINGS_LIVE ? <section className="panel"><Section title="Recording processing queue" subtitle={`${jobs.filter((job) => job.status !== "Ready").length} uploading · ${jobs.filter((job) => job.status === "Ready").length} ready`} /><JobList jobs={jobs} roomy /></section>
+      : <section className="panel"><Section title="Recording processing queue" subtitle="Session video arrives in a later release" action={<Chip color="purple">Coming soon</Chip>} /><RecordingSoon minHeight={340} /></section>}
   </>;
 }
 

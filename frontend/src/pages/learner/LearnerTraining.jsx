@@ -9,15 +9,17 @@ function roomStatus(progress) {
   return progress === 100 ? ["Complete", "mint"] : progress ? ["In progress", "yellow"] : ["Not started", "gray"];
 }
 
-// Without per-step points from the VR app, the points lost (100 − score) are spread
-// across steps by how often errors happen there.
+// Without per-step points from the VR app, the points lost (score is a percentage of the
+// room's total marks) are spread across steps by how often errors happen there.
 function estimatedStepPoints(roomId, stats) {
   const points = roomPoints[roomId].map((step) => step[0]);
+  const total = points.reduce((a, b) => a + b, 0);
   const weights = points.map((value, index) => value * (stats.stepErr[index] || 0));
   const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
-  const lost = 100 - stats.score;
+  const target = Math.round((stats.score * total) / 100);
+  const lost = total - target;
   const earned = points.map((value, index) => Math.max(0, Math.round(value - (lost * weights[index]) / totalWeight)));
-  let diff = stats.score - earned.reduce((a, b) => a + b, 0);
+  let diff = target - earned.reduce((a, b) => a + b, 0);
   for (let i = 0; diff !== 0 && i < 200; i += 1) {
     const k = i % earned.length;
     if (diff > 0 && earned[k] < points[k]) { earned[k] += 1; diff -= 1; } else if (diff < 0 && earned[k] > 0) { earned[k] -= 1; diff += 1; }

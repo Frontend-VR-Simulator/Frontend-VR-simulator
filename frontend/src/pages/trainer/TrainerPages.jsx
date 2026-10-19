@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { roomSteps, roomById } from "../../content/catalog";
-import { Avatar, Chip, Empty, Heading, Icon, Kpi, Modal, ModalHead, PctBar, Prog, ResultChip, Section, SkillsBlock } from "../../components/ui";
+import { Avatar, Chip, Empty, Heading, Icon, Kpi, Modal, ModalHead, PctBar, Prog, RecordingSoon, ResultChip, Section, SkillsBlock } from "../../components/ui";
+import { RECORDINGS_LIVE } from "../../config/features";
 import { colors, scoreColor, statusColor } from "../../lib/visual";
 import { SearchInput, SessionsTable } from "../../components/SessionsTable";
 import { matches, openOnKey, sessionSearchText } from "../../lib/interaction";
@@ -26,7 +27,7 @@ export function TrainerHome() {
       <Kpi label="Sessions to review" value={review.length} detail={`${review.filter((s) => s.result === "Fail").length} failed, ${review.filter((s) => s.result === "Review").length} borderline`} icon="clipboard" color="blue" />
       <Kpi label="Learners needing support" value={support.length} detail={`${support.filter((l) => l.status === "At risk").length} at risk`} icon="warning" color="orange" />
       <Kpi label="Average score" value={scored.length ? `${avg(scored.map((l) => l.score))}%` : "—"} detail={`${plural(learners.length, "assigned learner")}`} icon="target" color="purple" />
-      <Kpi label="Recordings available" value={model.sessions.filter((s) => s.recording === "Ready").length} detail="Video evidence ready" icon="video" color="yellow" />
+      <Kpi label="Recordings available" value={RECORDINGS_LIVE ? model.sessions.filter((s) => s.recording === "Ready").length : "Soon"} detail={RECORDINGS_LIVE ? "Video evidence ready" : "Session video coming soon"} icon="video" color="yellow" />
     </div>
     <div className="grid cols2 mb22">
       <section className="panel">
@@ -43,11 +44,13 @@ export function TrainerHome() {
     </div>
     <div className="grid cols2">
       <section className="panel">
+        {!RECORDINGS_LIVE ? <><Section title="Session recordings" subtitle="Video review for every VR attempt" action={<Chip color="purple">Coming soon</Chip>} /><RecordingSoon /></> : <>
         <Section title="Latest recording review" subtitle={latestRecording ? `${latestRecording.title} · ${latestRecording.learner}` : "Session recordings"} action={latestRecording && <a className="link" href={`#/session/${latestRecording.id}`}>Open review <Icon name="arrow" /></a>} />
         {latestRecording ? <>
           <a className="video-poster" style={{ minHeight: 232 }} href={`#/session/${latestRecording.id}`}><span className="play-disc" role="img" aria-label="Recording preview"><Icon name="play" className="ico-lg" /></span><div className="recording-controls"><PctBar value={0} color="yellow" /><span className="tiny">Attempt {latestRecording.attempt} · {latestRecording.date} · {latestRecording.minutes} min</span></div></a>
           <div className="flex-between mt16"><span className="small">{flaggedStep != null ? `Procedural error flagged at step ${Number(flaggedStep) + 1}` : `${plural(latestRecording.errors, "critical error")} recorded`}</span><Chip color={latestRecording.reviewed ? "mint" : "orange"}>{latestRecording.reviewed ? "Reviewed" : "Needs review"}</Chip></div>
         </> : <Empty>No recordings have been uploaded yet.</Empty>}
+        </>}
       </section>
       <section className="panel">
         <Section title="Competency gaps" subtitle="Lowest average room scores" />
@@ -116,13 +119,17 @@ export function SessionsPage({ onlyRecordings = false, query: routeQuery }) {
   const list = model.sessions.slice().reverse()
     .filter((session) => !onlyRecordings || session.recording !== "Unavailable")
     .filter((session) => !room || session.rooms.some((item) => item.roomId === room.id));
+  if (onlyRecordings && !RECORDINGS_LIVE) return <>
+    <Heading title="Session recordings" description="Video recordings of every VR attempt, linked to its assessment." eyebrow="RECORDING LIBRARY" />
+    <section className="panel"><Section title="Recording library" subtitle="Session video arrives in a later release" action={<Chip color="purple">Coming soon</Chip>} /><RecordingSoon minHeight={340} /></section>
+  </>;
   return <>
     <Heading title={onlyRecordings ? "Session recordings" : "VR session history"} description={onlyRecordings ? "Video recordings of every VR attempt, linked to its assessment." : "Every training attempt is recorded and assessed."} eyebrow={onlyRecordings ? "RECORDING LIBRARY" : "SESSION HISTORY"} />
     <section className="panel">
       <Section title={onlyRecordings ? "Recording library" : room ? `Sessions in ${room.name}` : "All sessions"} subtitle={plural(list.length, "training attempt")} action={<SearchInput value={query} onChange={setQuery} placeholder="Search sessions..." label="Search sessions" />} />
       <SessionsTable sessions={list.filter((session) => matches(sessionSearchText(session), query))} />
     </section>
-    <div className="small muted mt16">&apos;Processing&apos; recordings are still uploading from the VR launcher and cannot be played yet. Open a ready recording to view playback.</div>
+    {RECORDINGS_LIVE && <div className="small muted mt16">&apos;Processing&apos; recordings are still uploading from the VR launcher and cannot be played yet. Open a ready recording to view playback.</div>}
   </>;
 }
 

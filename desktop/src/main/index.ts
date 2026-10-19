@@ -22,7 +22,7 @@ let pendingServer: Server | null = null;
 let pendingTimer: NodeJS.Timeout | null = null;
 let vrProcess: ChildProcess | null = null;
 
-app.setName("VR Simulation Launcher");
+app.setName("SIMQO Launcher");
 
 const userDataPath = () => app.getPath("userData");
 const encryptedSessionPath = () => path.join(userDataPath(), "session.enc");

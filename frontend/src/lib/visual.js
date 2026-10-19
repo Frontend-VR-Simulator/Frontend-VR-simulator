@@ -1,4 +1,4 @@
-const assets = import.meta.glob("../design/assets/*.jpg", { eager: true, query: "?url", import: "default" });
+const assets = import.meta.glob("../design/assets/*.{jpg,png,webp}", { eager: true, query: "?url", import: "default" });
 
 export function assetUrl(fileName) {
   return assets[`../design/assets/${fileName}`] || "";

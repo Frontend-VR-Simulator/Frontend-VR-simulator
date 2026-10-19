@@ -1,4 +1,4 @@
-/* Production-suite content from the VR Pharma design. Geometry in metres from the site
+/* Production-suite content from the SIMQO design. Geometry in metres from the site
    floor plan (18 m × 8 m, origin top-left). Room ids match the VR app's results.json. */
 export const PASS_MARK = 80;
 
@@ -294,106 +294,67 @@ export const roomDetails = {
  "gowning": {
   "title": "Cleanroom Gowning",
   "steps": [
-   "Hand hygiene & pre-entry",
-   "Crossover bench & shoe covers",
-   "Hair cover & face mask",
-   "Sterile coverall",
-   "Overboots, goggles & gloves",
-   "Mirror check & airlock entry"
+   "Hazmat suit",
+   "Shoes",
+   "Hand gloves",
+   "Face mask"
   ],
   "detail": [
    {
     "sub": [
-     "Remove jewellery, watches and cosmetics",
-     "Wash hands and forearms for 40–60 seconds",
-     "Dry with a lint-free towel",
-     "Apply 70% IPA hand sanitiser and let it dry"
+     "Take a sealed hazmat suit of the right size",
+     "Step in without letting it touch the floor",
+     "Zip fully and close the collar"
     ],
     "criteria": [
-     "No jewellery or exposed cosmetics",
-     "Wrists and between fingers fully covered"
+     "Suit fully closed with no exposed clothing"
     ],
     "errors": [
-     "Skipping wrists or fingertips",
-     "Touching taps or surfaces after sanitising"
+     "Suit not fully zipped",
+     "Suit touched the floor while putting it on"
     ]
    },
    {
     "sub": [
      "Sit on the crossover bench",
-     "Put a shoe cover on one foot",
-     "Swing that leg to the clean side",
-     "Repeat for the other foot"
+     "Put on the cleanroom shoes one foot at a time",
+     "Swing each foot to the clean side"
     ],
     "criteria": [
      "Covered foot never touches the dirty side"
     ],
     "errors": [
-     "Stepping over with an uncovered shoe",
-     "Standing on the bench"
+     "Shoe placed on the dirty side",
+     "Shoes put on before the suit"
     ]
    },
    {
     "sub": [
-     "Put on a hair cover with all hair inside",
-     "Fit the face mask over the nose bridge",
-     "Put on the sterile hood"
+     "Sanitise hands",
+     "Put on gloves without touching the outer surface",
+     "Pull the cuffs over the suit sleeves"
     ],
     "criteria": [
-     "No exposed hair or beard",
-     "Mask sealed at nose and chin"
+     "Cuffs cover the sleeves",
+     "No tears or punctures"
     ],
     "errors": [
-     "Mask below the nose",
-     "Hair visible at the temples or neck"
+     "Glove cuffs left under the sleeves",
+     "Outer glove surface touched with bare hands"
     ]
    },
    {
     "sub": [
-     "Open the pack without touching the outer surface",
-     "Hold the coverall by the inner collar",
-     "Step in without the garment touching the floor",
-     "Zip up and fasten the collar snaps"
+     "Put on the face mask covering nose and mouth",
+     "Press the nose clip to seal",
+     "Check the fit in the mirror"
     ],
     "criteria": [
-     "Coverall never touches the floor or walls",
-     "Hood skirt tucked inside the collar"
+     "Nose and mouth fully covered with a tight seal"
     ],
     "errors": [
-     "Sleeve or leg touching the floor",
-     "Hood worn outside the collar"
-    ]
-   },
-   {
-    "sub": [
-     "Tuck coverall legs into sterile overboots and fasten",
-     "Put on goggles over the hood",
-     "Put on sterile gloves over the sleeve cuffs",
-     "Sanitise the gloves"
-    ],
-    "criteria": [
-     "Glove cuff fully covers the sleeve",
-     "No skin gaps at wrist, face or ankle"
-    ],
-    "errors": [
-     "Glove cuff under the sleeve",
-     "Touching the face after gloving"
-    ]
-   },
-   {
-    "sub": [
-     "Inspect the full gown in the mirror",
-     "Replace any torn or soiled garment",
-     "Log the gowning in the entry record",
-     "Enter through the airlock using the door interlock"
-    ],
-    "criteria": [
-     "Full self-inspection done before entry",
-     "Only one airlock door open at a time"
-    ],
-    "errors": [
-     "Entering without a mirror check",
-     "Forcing the airlock interlock"
+     "Mask not covering the nose",
+     "Mask fitted after entering the clean area"
     ]
    }
   ],
@@ -419,146 +380,38 @@ export const roomDetails = {
  "granulation": {
   "title": "Wet Granulation",
   "steps": [
-   "Charge dry powders",
-   "Add binder while the impeller runs",
-   "Counterflow granulation",
-   "Discharge wet mass",
-   "Transfer to the fluid bed",
-   "Fluidisation",
-   "Top spraying and agglomeration",
-   "Warm-air drying",
-   "Airflow stop and discharge"
+   "Loading",
+   "Mixing"
   ],
   "detail": [
    {
     "sub": [
-     "With the machine idle, identify the mixing bowl, bottom impeller, side chopper, top binder entry and discharge path",
+     "Verify materials against the batch record",
      "Charge the dry powders into the mixing bowl",
-     "Confirm charging is complete before starting the impeller"
+     "Close and lock the lid"
     ],
     "criteria": [
-     "Powder charged into the mixing bowl",
-     "Impeller and chopper stopped while charging"
+     "Correct materials and quantities loaded",
+     "Lid locked before starting"
     ],
     "errors": [
-     "Starting the impeller before charging is complete",
-     "Not identifying the binder entry and discharge path"
+     "Material not verified against the batch record",
+     "Lid not locked before starting"
     ]
    },
    {
     "sub": [
-     "Start the bottom-mounted Z-shaped impeller",
-     "Watch the powder bed start moving",
-     "Add granulation liquid / binder from the top while the impeller keeps rotating"
+     "Start the impeller and chopper at the set speed",
+     "Add binder from the top while the impeller runs",
+     "Mix for the set time, then stop and check the granules"
     ],
     "criteria": [
-     "Binder added from the top",
-     "Impeller rotating for the whole binder addition"
+     "Binder added only while the impeller rotates",
+     "Mixing time as specified"
     ],
     "errors": [
-     "Adding binder with the impeller stopped",
-     "Adding binder anywhere other than the top"
-    ]
-   },
-   {
-    "sub": [
-     "Run the impeller and the side cross-blade chopper together",
-     "Watch the counterflow mixing vortex form",
-     "Watch the mass change from loose powder to dense, uniform granules"
-    ],
-    "criteria": [
-     "Impeller and chopper both running",
-     "Mass is dense and uniform before discharge"
-    ],
-    "errors": [
-     "Chopper not running during granulation",
-     "Ending granulation while the mass is still loose"
-    ]
-   },
-   {
-    "sub": [
-     "Open the discharge path",
-     "Discharge the wet / blended granulated mass",
-     "Confirm the bowl is empty"
-    ],
-    "criteria": [
-     "Wet mass leaves through the discharge path",
-     "Bowl emptied"
-    ],
-    "errors": [
-     "Discharging before granulation is complete",
-     "Leaving material in the bowl"
-    ]
-   },
-   {
-    "sub": [
-     "Identify the discharged wet mass as the feed for the fluid bed",
-     "Load it into the bottom conical product container",
-     "Let the material settle before starting the airflow"
-    ],
-    "criteria": [
-     "Machine 1 output is loaded as machine 2 input"
-    ],
-    "errors": [
-     "Starting the airflow before receiving is complete"
-    ]
-   },
-   {
-    "sub": [
-     "Start the upward process airflow",
-     "Watch the bed lift from settled to suspended",
-     "Wait for a stable fluidised bed"
-    ],
-    "criteria": [
-     "Air moves upward through the material",
-     "Bed stable and suspended before spraying"
-    ],
-    "errors": [
-     "Starting the spray before the bed is stable"
-    ]
-   },
-   {
-    "sub": [
-     "Spray binder downward from the top-mounted nozzle onto the fluidised bed",
-     "Keep the bed fluidised while spraying",
-     "Watch particles stick together and grow into agglomerates"
-    ],
-    "criteria": [
-     "Spray comes only from the top nozzle, directed downward",
-     "Bed stays fluidised throughout spraying"
-    ],
-    "errors": [
-     "Spraying onto a settled bed",
-     "Treating the process as bottom spray"
-    ]
-   },
-   {
-    "sub": [
-     "Switch from spraying to warm-air drying",
-     "Keep the granules suspended while they dry",
-     "Let the drying stage complete"
-    ],
-    "criteria": [
-     "Drying is a distinct stage",
-     "Granules stay suspended while drying"
-    ],
-    "errors": [
-     "Ending drying before the stage completes",
-     "Stopping the airflow during drying"
-    ]
-   },
-   {
-    "sub": [
-     "Turn off the airflow",
-     "Let the granules settle",
-     "Discharge the dried final product"
-    ],
-    "criteria": [
-     "Airflow off before discharge",
-     "Dried granules discharged"
-    ],
-    "errors": [
-     "Discharging with the airflow still on"
+     "Binder added with the impeller stopped",
+     "Mixing time shorter than specified"
     ]
    }
   ],
@@ -702,8 +555,8 @@ export const roomVideos = {
  }
 };
 
-/* Assessment points per step: 100 per room, weighted by GMP risk. [points, critical]. An error on a critical step fails the attempt. */
-export const roomPoints = {"gowning":[[15,1],[15,1],[15,0],[25,1],[20,1],[10,0]],"wash":[[5,0],[10,0],[10,0],[15,0],[20,1],[15,1],[10,0],[15,1]],"cleanstore":[[25,1],[15,0],[15,1],[15,0],[10,0],[20,0]],"goods":[[10,0],[10,0],[15,0],[15,1],[15,1],[25,1],[10,0]],"dispensary":[[15,1],[15,1],[20,1],[15,0],[20,1],[15,0]],"granulation":[[10,0],[15,1],[15,0],[10,0],[10,0],[10,0],[15,1],[10,0],[5,0]],"blending":[[10,1],[15,1],[10,0],[10,0],[15,0],[15,0],[15,1],[10,0]],"tableting":[[10,1],[15,0],[10,0],[10,0],[15,0],[10,0],[10,0],[20,1]],"blister":[[10,1],[10,0],[5,0],[10,0],[10,0],[10,0],[15,1],[10,0],[10,0],[10,0]],"cartoning":[[10,1],[15,1],[15,1],[15,0],[5,0],[10,0],[15,0],[15,0]],"water":[[10,0],[10,0],[25,1],[25,1],[10,0],[20,0]]};
+/* Assessment points per step, weighted by GMP risk (most rooms total 100; Gowning and Granulation use 10 marks per step). [points, critical]. An error on a critical step fails the attempt. */
+export const roomPoints = {"gowning":[[10,1],[10,0],[10,1],[10,1]],"wash":[[5,0],[10,0],[10,0],[15,0],[20,1],[15,1],[10,0],[15,1]],"cleanstore":[[25,1],[15,0],[15,1],[15,0],[10,0],[20,0]],"goods":[[10,0],[10,0],[15,0],[15,1],[15,1],[25,1],[10,0]],"dispensary":[[15,1],[15,1],[20,1],[15,0],[20,1],[15,0]],"granulation":[[10,0],[10,1]],"blending":[[10,1],[15,1],[10,0],[10,0],[15,0],[15,0],[15,1],[10,0]],"tableting":[[10,1],[15,0],[10,0],[10,0],[15,0],[10,0],[10,0],[20,1]],"blister":[[10,1],[10,0],[5,0],[10,0],[10,0],[10,0],[15,1],[10,0],[10,0],[10,0]],"cartoning":[[10,1],[15,1],[15,1],[15,0],[5,0],[10,0],[15,0],[15,0]],"water":[[10,0],[10,0],[25,1],[25,1],[10,0],[20,0]]};
 
 export const roomById = Object.fromEntries(rooms.map((room) => [room.id, room]));
 

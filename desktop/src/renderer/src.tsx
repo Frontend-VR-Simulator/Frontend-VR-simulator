@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Session, SyncStatus } from "../preload";
 import "./style.css";
+import mascot from "./mascot.webp";
+import linchpin from "./linchpin.png";
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -43,9 +45,10 @@ function App() {
 
   return <main>
     <section className="card">
-      <div className="logo">VR</div>
-      <h1>VR Simulation Launcher</h1>
-      <p className="subtitle">Sign in and launch your training environment.</p>
+      <img className="mascot" src={mascot} alt="" />
+      <h1 className="brand">SIM<span>QO</span></h1>
+      <p className="tagline">Practice. Prove. Progress.</p>
+      <p className="subtitle">Sign in and launch your VR training.</p>
 
       {!vrPath && <div className="path-box">
         <span>One-time setup</span>
@@ -75,6 +78,7 @@ function App() {
         {error && <button className="link" onClick={login}>Retry</button>}
       </div>}
     </section>
+    <p className="owner">by <img src={linchpin} alt="Linchpin" /></p>
   </main>;
 }
 

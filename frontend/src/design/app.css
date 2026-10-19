@@ -15,3 +15,17 @@ a.attempt-card{display:block}
 .modal{max-height:calc(100vh - 40px);overflow:auto}
 .data-table tr.clickable:focus-visible td{background:#ffffff0d}
 @media(max-width:640px){.room-picks{grid-template-columns:1fr}}
+
+/* SIMQO wordmark: SIM in the text colour, QO in brand yellow. */
+.brand-word{font-size:25px;font-weight:850;letter-spacing:.03em;line-height:1;color:light-dark(#1f1f1f,#f8f8f8)}
+.brand-accent{color:var(--yellow)}
+.app-top .brand-word{font-size:21px}
+/* Owner badge: the Linchpin logo sits on its own light plate so it reads in both themes. */
+.owner-badge{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.owner-badge img{height:24px;width:auto;background:#f7f7f7;border-radius:7px;padding:4px 8px}
+.login-overlay .owner-badge{display:flex}
+/* Mascot hero: keep the robot's face clear of the dashboard mock-up beside it. */
+.hero-person{left:0;width:44%;mask-image:none;background:radial-gradient(ellipse at 45% 55%,#f5b80030,transparent 62%),url('assets/mascot.webp') 40% 60%/auto 84% no-repeat}
+.mockup{width:60%}
+/* Login mascot scales with the window so it never reaches the headline below it. */
+.login-media::before{background:radial-gradient(ellipse at 60% 30%,#f5b80026,transparent 45%),url('assets/mascot.webp') 60% 5%/auto min(50%, calc(100vh - 480px)) no-repeat;mask-image:none;opacity:1}

@@ -1,4 +1,4 @@
-import { Icon, Logo, PctBar } from "../components/ui";
+import { Icon, Logo, Owner, PctBar } from "../components/ui";
 import { colors } from "../lib/visual";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { COMPANY } from "../config/company";
@@ -34,9 +34,9 @@ export default function Landing({ signedIn }) {
 
     <section className="marketing-hero"><div className="site-container hero-grid">
       <div className="hero-copy">
-        <div className="eyebrow">IMMERSIVE TRAINING • MEASURABLE PROGRESS</div>
-        <h1>Real skills.<br /><span>Real impact.</span></h1>
-        <p>Pharmaceutical training that goes beyond theory. Practice in VR, improve with every attempt, and see exactly where skills grow.</p>
+        <div className="eyebrow">3D INDUSTRIAL SIMULATION • VR TRAINING</div>
+        <h1>Practice. Prove.<br /><span>Progress.</span></h1>
+        <p>3D industrial simulation for manufacturing training in VR. Practice real procedures, improve with every attempt, and see exactly where skills grow.</p>
         <div className="hero-actions"><a className="btn primary" href={enter}>Explore the platform <Icon name="arrow" /></a><a className="btn ghost" href="#recordings">See how it works <Icon name="play" /></a></div>
         <div className="feature-tags">
           <div className="feature-tag"><span className="tag-icon"><Icon name="headset" /></span><div>Immersive VR<br /><span>Industry scenarios</span></div></div>
@@ -45,7 +45,7 @@ export default function Landing({ signedIn }) {
         </div>
       </div>
       <div className="hero-visual">
-        <div className="hero-person" role="img" aria-label="Pharmaceutical trainee wearing VR headset" />
+        <div className="hero-person" role="img" aria-label="The SIMQO mascot, a friendly white robot, waving" />
         <div className="mockup">
           <div className="mock-title"><span>Training overview</span><span className="chip yellow">{COMPANY}</span></div>
           <div className="mock-tiles"><div className="mock-tile"><strong>248</strong><span>Learners</span></div><div className="mock-tile"><strong style={{ color: "var(--yellow)" }}>82%</strong><span>Completion</span></div><div className="mock-tile"><strong style={{ color: "var(--purple)" }}>86%</strong><span>Avg. score</span></div></div>
@@ -82,7 +82,7 @@ export default function Landing({ signedIn }) {
     </div></div></section>
 
     <footer className="site-footer"><div className="site-container footer-line">
-      <div><Logo /><div className="small mt12">VR-powered pharmaceutical training. © {new Date().getFullYear()} VR Pharma. All rights reserved.</div></div>
+      <div><Logo /><div className="small mt12">3D industrial simulation for manufacturing training in VR. © {new Date().getFullYear()} Linchpin. All rights reserved.</div><Owner className="mt12" /></div>
       <div><a href="#features">Platform</a><a href="#roles">Workspaces</a><a href={enter}>Sign in</a></div>
     </div></footer>
   </>;

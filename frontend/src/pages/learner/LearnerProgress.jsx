@@ -39,7 +39,7 @@ export default function LearnerProgress() {
       </section>
     </div>
     <section className="panel">
-      <Section title="Assessment history" subtitle="Select an attempt to review procedural steps, errors, and video evidence" />
+      <Section title="Assessment history" subtitle="Select an attempt to review procedural steps and errors" />
       <SessionsTable sessions={mine.slice().reverse()} />
     </section>
   </>;

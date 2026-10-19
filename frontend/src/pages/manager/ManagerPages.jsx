@@ -136,7 +136,7 @@ export function ManagerReports() {
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "vr-pharma-training-report.csv";
+    link.download = "simqo-training-report.csv";
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 500);
   }

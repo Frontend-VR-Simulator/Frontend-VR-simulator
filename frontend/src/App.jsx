@@ -115,8 +115,8 @@ export default function App() {
   useEffect(() => { if (redirect) goto(redirect); }, [redirect]);
 
   useEffect(() => {
-    const titles = { landing: "VR Pharma | Immersive training", login: "Sign in | VR Pharma", session: "Session review | VR Pharma" };
-    document.title = titles[first || "landing"] || `${second || "overview"} | VR Pharma`;
+    const titles = { landing: "SIMQO | Practice. Prove. Progress.", login: "Sign in | SIMQO", session: "Session review | SIMQO" };
+    document.title = titles[first || "landing"] || `${second || "overview"} | SIMQO`;
   }, [first, second]);
 
   const context = useMemo(() => ({ auth, model, api, reload, toast, logout, view }), [auth, model, api, reload, toast, logout, view]);

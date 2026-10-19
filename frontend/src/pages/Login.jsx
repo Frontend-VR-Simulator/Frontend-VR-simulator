@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-import { Icon, Logo } from "../components/ui";
+import { Icon, Logo, Owner } from "../components/ui";
 import { API_BASE_URL } from "../config/api";
 import { COMPANY } from "../config/company";
 import { errorMessage } from "../lib/api";
@@ -26,7 +26,7 @@ export function LoginLayout({ children }) {
   return <div className="login-page">
     <div className="login-media">
       <a href="#/landing" style={{ position: "relative", zIndex: 3 }}><Logo /></a>
-      <div className="login-overlay"><div className="eyebrow">IMMERSIVE TRAINING</div><h1>Real skills.<br /><span>Real impact.</span></h1><p>Explore a smarter way to develop pharmaceutical manufacturing skills and follow every step of learning.</p></div>
+      <div className="login-overlay"><div className="eyebrow">3D INDUSTRIAL SIMULATION</div><h1>Practice. Prove.<br /><span>Progress.</span></h1><p>3D industrial simulation for manufacturing training in VR. Follow every attempt, step and skill.</p><Owner className="mt16" /></div>
     </div>
     <div className="login-form-wrap">{children}</div>
   </div>;
@@ -85,7 +85,7 @@ export default function Login({ onLogin }) {
       </div>
       {!desktopRedirect && <label className="check"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /> Remember me on this device</label>}
       <button className="btn primary" type="submit" disabled={loading}>{loading ? "Signing in…" : <>{desktopRedirect ? "Sign in and start VR" : "Enter workspace"} <Icon name="arrow" /></>}</button>
-      <div className="login-bottom"><span><Icon name="shield" className="ico-sm" /> Secure access for {COMPANY} personnel</span><div className="mt12">New to VR Pharma? <a className="link" href="#/landing">Explore the platform <Icon name="arrow" /></a></div></div>
+      <div className="login-bottom"><span><Icon name="shield" className="ico-sm" /> Secure access for {COMPANY} personnel</span><div className="mt12">New to SIMQO? <a className="link" href="#/landing">Explore the platform <Icon name="arrow" /></a></div></div>
     </form>
   </LoginLayout>;
 }
