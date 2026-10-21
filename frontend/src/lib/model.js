@@ -15,22 +15,22 @@ export function isPendingReview(session) {
   return !session.reviewed && session.result !== "Pass";
 }
 
+// Every session is a run through one or more rooms. A one-room session is shown as
+// that room's attempt; a longer run gets the combined view.
 function normalizeSession(raw, userById) {
-  const roomResults = Array.isArray(raw.rooms) ? raw.rooms : [];
-  const issues = {};
-  if (raw.session_type === "room") {
-    for (const step of roomResults[0]?.steps || []) if (step.error) issues[step.index] = step.error;
-  }
+  const roomResults = (Array.isArray(raw.rooms) ? raw.rooms : []).map(withPoints);
+  const single = roomResults.length === 1 ? roomResults[0] : null;
   const completedAt = new Date(raw.completed_at);
   return {
     id: raw.id,
     traineeId: raw.trainee_id,
     learner: userById.get(raw.trainee_id)?.name ?? "Former user",
-    type: raw.session_type || "room",
-    module: raw.room_id,
-    title: raw.session_type === "complete" ? "Complete session" : raw.room_id ? roomName(raw.room_id) : "VR session",
-    label: raw.session_type === "complete" ? (raw.attempt === 1 ? "Baseline run" : `Run ${raw.attempt}`) : null,
-    attempt: raw.attempt ?? 1,
+    type: single ? "room" : "complete",
+    module: single?.roomId ?? null,
+    title: single ? roomName(single.roomId) : "Complete session",
+    label: null,
+    attempt: 1,
+    run: 1,
     completedAt,
     date: fmtDate(completedAt),
     time: fmtClock(completedAt),
@@ -41,8 +41,41 @@ function normalizeSession(raw, userById) {
     recording: raw.recording_status || "Unavailable",
     recordingSeconds: raw.recording_duration_seconds,
     reviewed: Boolean(raw.reviewed_at),
-    issues,
+    issues: single ? stepIssues(single) : {},
     rooms: roomResults,
+    href: `session/${raw.id}`,
+  };
+}
+
+// Rooms stored before scores were derived from points were scored out of 100.
+function withPoints(room) {
+  const legacy = room.maxPoints == null;
+  return { ...room, points: legacy ? room.score : room.points, maxPoints: legacy ? 100 : room.maxPoints };
+}
+
+function stepIssues(room) {
+  const issues = {};
+  for (const step of room.steps || []) if (step.error) issues[step.index] = step.error;
+  return issues;
+}
+
+// One room taken out of a session, shaped like a session so room views can list it.
+function roomVisit(session, room, attempt) {
+  return {
+    ...session,
+    type: "room",
+    module: room.roomId,
+    title: roomName(room.roomId),
+    label: null,
+    attempt,
+    score: Math.round(room.score),
+    result: room.result || session.result,
+    errors: room.criticalErrors ?? 0,
+    minutes: room.minutes ?? Math.round((room.durationSeconds || 0) / 60),
+    issues: stepIssues(room),
+    rooms: [room],
+    session,
+    href: session.rooms.length === 1 ? session.href : `session/${session.id}?room=${room.roomId}`,
   };
 }
 
@@ -70,7 +103,7 @@ function topErrors(entries) {
   return [...counts].sort((a, b) => b[1] - a[1]).slice(0, 3);
 }
 
-// Cohort analytics for one room, from every recorded visit (room sessions and complete runs).
+// Cohort analytics for one room, from every session that included it.
 function cohortStats(roomId, entries) {
   if (!entries.length) return { sessions: 0 };
   const firstByLearner = new Map();
@@ -127,19 +160,22 @@ function roomProgress(roomId, entries) {
   return { progress, done, passed: false, last };
 }
 
-// Combined results of a complete run. Every room is scored out of 100; rooms the run
-// skipped count as zero, as on the server.
+// Combined results of a session. Rooms keep their own point totals; the session
+// score is all points earned out of the points available in the rooms played.
 export function completeSummary(session) {
   const byRoom = new Map(session.rooms.map((room) => [room.roomId, room]));
   const rs = roomCardOrder.map((id) => {
     const room = byRoom.get(id);
-    return { id, score: room ? Math.round(room.score) : 0, minutes: room ? room.minutes ?? Math.round(room.durationSeconds / 60) : 0, errors: room?.criticalErrors ?? 0, recorded: Boolean(room), offset: room?.recordingOffsetSeconds ?? null };
+    return { id, score: room ? Math.round(room.score) : 0, points: room?.points ?? 0, maxPoints: room?.maxPoints ?? 0, minutes: room ? room.minutes ?? Math.round(room.durationSeconds / 60) : 0, errors: room?.criticalErrors ?? 0, recorded: Boolean(room), offset: room?.recordingOffsetSeconds ?? null };
   });
-  const pts = rs.reduce((sum, room) => sum + room.score, 0);
+  const played = rs.filter((room) => room.recorded);
+  const round = (value) => Math.round(value * 100) / 100;
+  const pts = round(played.reduce((sum, room) => sum + room.points, 0));
+  const max = round(played.reduce((sum, room) => sum + room.maxPoints, 0));
   const minutes = rs.reduce((sum, room) => sum + room.minutes, 0);
   const errors = rs.reduce((sum, room) => sum + room.errors, 0);
-  const passed = rs.filter((room) => room.score >= PASS_MARK && !room.errors).length;
-  return { rs, pts, max: roomCardOrder.length * 100, score: session.score, minutes, errors, passed, result: session.result };
+  const passed = played.filter((room) => room.score >= PASS_MARK && !room.errors).length;
+  return { rs, played: played.length, pts, max, score: session.score, minutes, errors, passed, result: session.result };
 }
 
 export function programStatus(program) {
@@ -153,6 +189,24 @@ export function buildModel(workspace) {
   const { me, users = [], feedback = [], programs: rawPrograms = [] } = workspace;
   const userById = new Map(users.map((user) => [user.id, user]));
   const sessions = (workspace.sessions || []).map((raw) => normalizeSession(raw, userById)).sort((a, b) => a.completedAt - b.completedAt);
+
+  // Sessions are numbered per learner; room attempts are numbered per learner and room,
+  // counting every session the room appeared in.
+  const runCount = new Map();
+  const visitCount = new Map();
+  const visits = [];
+  for (const session of sessions) {
+    session.run = (runCount.get(session.traineeId) || 0) + 1;
+    runCount.set(session.traineeId, session.run);
+    session.label = session.type === "complete" ? `Session ${session.run}` : null;
+    for (const room of session.rooms) {
+      const key = `${session.traineeId}/${room.roomId}`;
+      const attempt = (visitCount.get(key) || 0) + 1;
+      visitCount.set(key, attempt);
+      visits.push(roomVisit(session, room, attempt));
+    }
+    if (session.type === "room") session.attempt = visits.at(-1).attempt;
+  }
   const sessionById = new Map(sessions.map((session) => [session.id, session]));
   const trainees = users.filter((user) => user.role === "trainee");
   const trainer = me.role === "trainee" ? users.find((user) => user.id === me.trainer_id) : null;
@@ -238,8 +292,11 @@ export function buildModel(workspace) {
     recentNotes: [...notesBySession.values()].flat().filter((note) => note.createdAt.getTime() >= Date.now() - WEEK_MS),
     pendingReviews: () => sessions.filter(isPendingReview),
     sessionsOf: (traineeId) => sessions.filter((session) => session.traineeId === traineeId),
-    roomSessions: (roomId, traineeId) => sessions.filter((session) => session.type === "room" && session.module === roomId && session.traineeId === traineeId),
-    completeSessions: (traineeId) => sessions.filter((session) => session.type === "complete" && session.traineeId === traineeId),
+    // Every attempt at a room, whether the session had that room alone or with others.
+    roomSessions: (roomId, traineeId) => visits.filter((visit) => visit.module === roomId && (!traineeId || visit.traineeId === traineeId)),
+    roomVisitsOf: (traineeId) => visits.filter((visit) => visit.traineeId === traineeId),
+    roomVisit: (session, roomId) => visits.find((visit) => visit.session.id === session.id && visit.module === roomId) || null,
+    completeSessions: (traineeId) => sessions.filter((session) => session.traineeId === traineeId),
     roomStats: (roomId, traineeId) => (traineeId ? learnerStats(roomId, entriesFor(roomId, traineeId)) : cohortStats(roomId, entriesFor(roomId))),
     roomProgress: (roomId, traineeId) => roomProgress(roomId, entriesFor(roomId, traineeId)),
     passedRooms: passedSet,

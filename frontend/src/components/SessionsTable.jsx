@@ -12,8 +12,8 @@ export function SessionsTable({ sessions }) {
   return <div className="table-wrap"><table className="data-table">
     <thead><tr><th>ROOM / LEARNER</th><th>DATE</th><th>DURATION</th><th>SCORE</th><th>RECORDING</th><th>RESULT</th><th /></tr></thead>
     <tbody>{sessions.map((session) => {
-      const open = () => goto(`session/${session.id}`);
-      return <tr key={session.id} className="clickable" tabIndex={0} onClick={open} onKeyDown={openOnKey(open)}>
+      const open = () => goto(session.href);
+      return <tr key={session.href} className="clickable" tabIndex={0} onClick={open} onKeyDown={openOnKey(open)}>
         <td><div className="row-heading">{session.title}</div><div className="row-sub">{session.learner} · Attempt {session.attempt}</div></td>
         <td>{session.date}<div className="row-sub">{session.time}</div></td>
         <td>{session.minutes} min</td>

@@ -8,7 +8,7 @@ Status as of 19 Oct 2026. This covers how the pieces fit together today, what ha
 
 | Piece | Where | What it does |
 | --- | --- | --- |
-| **VR application** | Packaged Unreal Engine `.exe`, **not in this repo** | Runs the training rooms, scores the trainee, writes one `results-<sessionId>.json` per session (and later a video file). |
+| **VR application** | Packaged Unreal Engine `.exe`, **not in this repo** | Runs the training rooms, scores the trainee, writes one `results-<name>.json` per session (and later a video file). |
 | **Desktop launcher** | `desktop/` (Electron) | Signs the trainee in through the browser, starts the VR `.exe`, watches for results files and uploads them. |
 | **Backend API** | `backend/` (Node/Express) | Login, invitations, validates and stores VR results, issues recording upload URLs, serves the dashboard feed. |
 | **Web app** | `frontend/` (React/Vite) | Login page and the four role dashboards: learner, trainer, manager (head), admin. |
@@ -55,7 +55,7 @@ sequenceDiagram
   participant DB as Supabase DB
   participant S as Supabase Storage
   participant W as Web dashboards
-  VR->>VR: Session ends → write results-<sessionId>.json in the -ResultsPath folder
+  VR->>VR: Session ends → write results-<name>.json in the -ResultsPath folder
   L->>L: Detects file (fs.watch + 5 s poll), moves it to results-outbox/
   L->>API: POST /vr/results (JWT)
   API->>API: Validate, check userId = token, score Pass/Review/Fail, number the attempt
@@ -73,18 +73,19 @@ sequenceDiagram
 Reliability features that already exist:
 
 - **Offline-safe.** Failed uploads stay in `results-outbox/` and retry every 60 s and after every sign-in.
-- **No duplicates.** Re-sending the same `sessionId` returns the stored session.
+- **No duplicates.** Every file gets a `sessionId` (the launcher derives one from the file's contents when Unreal leaves it out). Re-sending the same `sessionId` returns the stored session.
 - **Wrong user.** Results whose `userId` doesn't match the signed-in user wait in the outbox until that user signs in. If the server rejects them (403), they go to `results-rejected/`.
 - **Invalid files.** Unreadable files and validation failures (400) go to `results-rejected/` and are logged on the admin audit page.
-- **Late attempts.** Results that arrive late are numbered by `completedAt`, and later attempts shift up.
+- **Late attempts.** Results that arrive late are numbered by `completedAt`, and later sessions shift up.
 
-Launcher data folder on Windows: `C:\Users\<user>\AppData\Roaming\VR Simulation Launcher\` (`results\`, `results-outbox\`, `results-sent\`, `results-rejected\`).
+Launcher data folder on Windows: `C:\Users\<user>\AppData\Roaming\SIMQO Launcher\` (`results\`, `results-outbox\`, `results-sent\`, `results-rejected\`).
 
 ### 2.3 Scoring rules (server side, `backend/src/config/rooms.js`)
 
 - Any error on a step marked `critical` → **Fail**.
-- Otherwise: score ≥ 80 → **Pass**, 70–79 → **Review** (a trainer signs it off), < 70 → **Fail**.
-- A `"complete"` run is averaged over all **11 rooms**. Rooms that weren't visited count as 0.
+- Scores come from points: room score = room points ÷ room `maxPoints`; session score = all points ÷ all `maxPoints` of the rooms played. Each room can have any total.
+- Otherwise: score ≥ 80% → **Pass**, 70–79% → **Review** (a trainer signs it off), < 70% → **Fail**.
+- Every session holds 1 to 11 rooms. Rooms not played don't count. Each room in a session is also counted as an attempt at that room.
 - Room ids: `gowning`, `wash`, `cleanstore`, `goods`, `dispensary`, `granulation`, `blending`, `tableting`, `blister`, `cartoning`, `water`.
 
 ### 2.4 Who sees what
@@ -107,17 +108,17 @@ This is the contract the **Unreal developer** must implement. Everything after s
 | # | Event in Unreal | What Unreal must do |
 | --- | --- | --- |
 | 1 | **App start** | Read the `-AuthSessionPath=` and `-ResultsPath=` command-line values. Load `userId` from the session file. If it's missing, show "Start the VR app from the launcher". |
-| 2 | **Session start** (trainee enters a room, or starts a full run) | Create a unique `sessionId`, e.g. `VR-<yyyyMMdd-HHmmss>-<random>`, 8–128 chars of `A-Z a-z 0-9 . _ : -`. Record `startedAt` (ISO 8601 UTC). *Phase 2: start recording.* |
+| 2 | **Session start** (trainee starts a run, with one room or several) | Record `startedAt` (ISO 8601 UTC). No `sessionId` is needed; the launcher adds one. *Phase 2: start recording.* |
 | 3 | **Each step completed or failed** | Append `{ index, points, maxPoints, critical, error, timestampSeconds }` to the room's `steps`. `index` is the 0-based step in that room's process order. |
-| 4 | **Room finished** | Set the room's `score` (0–100) and `durationSeconds`, plus optional `competencies`. For a complete run, also set `recordingOffsetSeconds`. |
-| 5 | **Session finished** (room done, run done, or the trainee quits) | *Phase 2: stop the recording and wait until the video file is closed.* Then write the results **atomically to a file of its own** in the folder of `-ResultsPath`: write `results-<sessionId>.json.tmp`, then rename it to `results-<sessionId>.json` (e.g. `results-VR-1048.json`). Use only letters, digits, `.`, `_`, `-` in the name. |
-| 6 | *(launcher)* | Detects each file within about 1–5 s (or on its next start, if it was closed), queues it by `sessionId`, uploads it once, then deletes it. |
+| 4 | **Room finished** | Set the room's `durationSeconds`, plus optional `competencies` and `recordingOffsetSeconds` (where the room starts in the recording). No score is needed: the server works it out from the step points. |
+| 5 | **Session finished** (room done, run done, or the trainee quits) | *Phase 2: stop the recording and wait until the video file is closed.* Then write the results **atomically to a file of its own** in the folder of `-ResultsPath`: write `results-<name>.json.tmp`, then rename it to `results-<name>.json` (e.g. `results-20261019-094600.json`). Use only letters, digits, `.`, `_`, `-` in the name. |
+| 6 | *(launcher)* | Detects each file within about 1–5 s (or on its next start, if it was closed), gives it a `sessionId` if it has none, queues it, uploads it once, then deletes it. |
 | 7 | *(web)* | The new session appears on dashboards within 30 s. |
 
 Rules for Unreal:
 
 - Write **one file per session** with a unique name. Never overwrite another session's file. The launcher deletes each file after queueing it. (Older builds that write the fixed `results.json` still work, but two sessions finishing before the launcher picks up the first would overwrite each other.)
-- `type: "room"` must contain **exactly one** room. `type: "complete"` contains every room the trainee visited, each listed once.
+- `rooms` lists every room the trainee played in the session (1 to 11), each listed once. There is no `type` any more.
 - Copy `userId` exactly from `ue-session.json`. Never hard-code it.
 - If the trainee quits halfway, still write the file with the steps done so far, so the attempt is recorded.
 
@@ -125,22 +126,30 @@ Minimal phase 1 file (no video):
 
 ```json
 {
-  "schemaVersion": 1,
-  "sessionId": "VR-20261019-091200-a1b2",
+  "schemaVersion": 2,
   "userId": "<userId from ue-session.json>",
-  "type": "room",
   "startedAt": "2026-10-19T09:12:00Z",
   "completedAt": "2026-10-19T09:46:00Z",
-  "rooms": [{
-    "roomId": "granulation",
-    "score": 74,
-    "durationSeconds": 2040,
-    "steps": [
-      { "index": 0, "points": 10, "maxPoints": 10, "critical": false, "error": null, "timestampSeconds": 35 },
-      { "index": 1, "points": 0, "maxPoints": 15, "critical": true, "error": "Binder added with the impeller stopped", "timestampSeconds": 410 }
-    ],
-    "competencies": [{ "name": "Equipment handling", "score": 80 }]
-  }],
+  "rooms": [
+    {
+      "roomId": "gowning",
+      "durationSeconds": 300,
+      "steps": [
+        { "index": 0, "points": 2, "maxPoints": 2, "critical": false, "error": null, "timestampSeconds": 20 },
+        { "index": 1, "points": 3, "maxPoints": 3, "critical": false, "error": null, "timestampSeconds": 140 }
+      ]
+    },
+    {
+      "roomId": "granulation",
+      "durationSeconds": 1740,
+      "recordingOffsetSeconds": 300,
+      "steps": [
+        { "index": 0, "points": 10, "maxPoints": 10, "critical": false, "error": null, "timestampSeconds": 335 },
+        { "index": 1, "points": 0, "maxPoints": 15, "critical": true, "error": "Binder added with the impeller stopped", "timestampSeconds": 710 }
+      ],
+      "competencies": [{ "name": "Equipment handling", "score": 80 }]
+    }
+  ],
   "recording": null
 }
 ```
@@ -162,13 +171,14 @@ The full field reference is in `desktop/README.md` under "VR results hand-off".
      -d '{"email":"aman.khan@linchpinglobal.net","password":"…"}' | jq -r .data.token)
    USER_ID=$(curl -s -X POST $API/user/login -H 'Content-Type: application/json' \
      -d '{"email":"aman.khan@linchpinglobal.net","password":"…"}' | jq -r .data.userId)
-   # put $USER_ID into the sample file's userId, then:
+   # put $USER_ID into the sample file's userId and add a "sessionId" (8+ characters;
+   # the launcher normally adds it, but this test posts straight to the API), then:
    curl -X POST $API/vr/results -H "Authorization: Bearer $TOKEN" \
      -H 'Content-Type: application/json' -d @results.json
    ```
    Expect `201`. Then check the session appears for Aman (learner), Asad (trainer), Haseeb (head) and info@ (admin).
-3. **Launcher test (still no Unreal).** Sign in to the launcher as the trainee, then drop the same file into `…\VR Simulation Launcher\results\results-<sessionId>.json`. Within a few seconds it should move to `results-sent\`, and the dashboard should update.
-4. **Full test with Unreal.** Run one room and one complete run, then check the dashboards.
+3. **Launcher test (still no Unreal).** Sign in to the launcher as the trainee, then drop the same file into `…\SIMQO Launcher\results\results-test-1.json`. Within a few seconds it should move to `results-sent\`, and the dashboard should update.
+4. **Full test with Unreal.** Run a session with one room and one with several, then check the dashboards.
 5. **Failure tests:** unplug the network before a session ends and reconnect (it should upload on retry). Send the same file twice (no duplicate). Send a file for a different user (it waits, and is never attached to the wrong person).
 
 **Done when:** all four role dashboards show real Unreal sessions correctly, and the admin's "VR assessment ingestion" health shows 100%.

@@ -1,15 +1,12 @@
-// The results.json contract between the VR application and the LMS (schemaVersion 1).
+// The results file contract between the VR application and the LMS (schemaVersion 2).
 // Full field reference: desktop/README.md, "VR results hand-off".
 export const resultsExample = {
-  schemaVersion: 1,
-  sessionId: "VR-2026-10-19-0001",
+  schemaVersion: 2,
   userId: "<userId from ue-session.json>",
-  type: "room",
   startedAt: "2026-10-19T09:12:00Z",
   completedAt: "2026-10-19T09:46:00Z",
   rooms: [{
     roomId: "granulation",
-    score: 74,
     durationSeconds: 2040,
     steps: [
       { index: 0, points: 10, maxPoints: 10, critical: false, error: null, timestampSeconds: 35 },
@@ -17,15 +14,15 @@ export const resultsExample = {
     ],
     competencies: [{ name: "Equipment handling", score: 80 }],
   }],
-  recording: { path: "recordings/VR-2026-10-19-0001.mp4", durationSeconds: 2040 },
+  recording: { path: "recordings/20261019-094600.mp4", durationSeconds: 2040 },
 };
 
 export const resultsMapping = [
   ["userId", "Identify the learner (from ue-session.json)"],
-  ["sessionId", "Uniquely identify each VR attempt"],
-  ["type", "Single room or complete run"],
+  ["sessionId", "Added by the launcher; stops a session being saved twice"],
+  ["rooms[]", "The 1 to 11 rooms played in the session"],
   ["rooms[].roomId", "Match the production-suite room"],
-  ["rooms[].score", "Room assessment result"],
+  ["rooms[].steps[].points", "Points earned out of maxPoints; scores are derived from them"],
   ["rooms[].steps[]", "Step-by-step results and errors"],
   ["recording.path", "Session video, uploaded by the launcher"],
 ];

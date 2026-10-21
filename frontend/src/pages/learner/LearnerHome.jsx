@@ -118,7 +118,7 @@ export default function LearnerHome() {
     <div className="grid cols2">
       <section className="panel">
         <Section title="Recent results" subtitle="Your last assessed VR attempts" action={<a className="link" href="#/learner/sessions">History <Icon name="arrow" /></a>} />
-        {recent.length ? <div className="results">{recent.map((session) => <button className="result-row" key={session.id} onClick={() => goto(`session/${session.id}`)}>
+        {recent.length ? <div className="results">{recent.map((session) => <button className="result-row" key={session.id} onClick={() => goto(session.href)}>
           <div className="grow"><div className="row-heading">{session.title} <span className="row-sub">· {session.label || `Attempt ${session.attempt}`}</span></div><div className="row-sub">{session.date} · {session.minutes} min{session.errors ? ` · ${plural(session.errors, "critical error")}` : ""}</div></div>
           <b className="score">{session.score}%</b><ResultChip result={session.result} />
         </button>)}</div> : <Empty>Your results appear here after your first VR session.</Empty>}

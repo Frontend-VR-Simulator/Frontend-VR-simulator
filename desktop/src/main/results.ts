@@ -1,11 +1,12 @@
+import { createHash } from "node:crypto";
 import { createReadStream, watch, type FSWatcher } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 
 // The VR application writes one results file per finished session into the folder
-// of -ResultsPath, named results-<sessionId>.json (the legacy fixed name, e.g.
-// results.json, is still read). The launcher moves each file into a durable outbox
+// of -ResultsPath, named results-<anything>.json (results.json and result.json are
+// read too). A file without a sessionId gets one from the launcher. The launcher moves each file into a durable outbox
 // keyed by sessionId, uploads the results, then the recording, and retries anything
 // that fails until it succeeds or the server rejects it.
 
@@ -43,7 +44,7 @@ type Timing = { retryMs: number; pollMs: number; settleMs: number; parseRetryMs:
 const DEFAULT_TIMING: Timing = { retryMs: 60_000, pollMs: 5_000, settleMs: 750, parseRetryMs: 1_000, recordingSettleMs: 2_000 };
 
 const SESSION_ID_PATTERN = /^[A-Za-z0-9._:-]{8,128}$/;
-const RESULTS_FILE_PATTERN = /^results-.+\.json$/i;
+const RESULTS_FILE_PATTERN = /^results?(-.+)?\.json$/i;
 const PARSE_RETRIES = 10;
 // Recording files can be finalised after results.json; give up after ~10 minutes of retries.
 const RECORDING_MISSING_LIMIT = 10;
@@ -58,6 +59,19 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // write an alternate data stream instead), so outbox names are percent-encoded.
 // Ids without ":" keep the same name as before.
 const entryName = (sessionId: string) => `${encodeURIComponent(sessionId)}.json`;
+
+// Windows tools often add a byte-order mark: PowerShell 5.1 writes UTF-8 with a BOM and
+// Unreal's FFileHelper::SaveStringToFile writes UTF-16 for non-ASCII text. JSON.parse
+// rejects both, so decode by BOM first.
+async function readJsonFile(file: string): Promise<unknown> {
+  const bytes = await readFile(file);
+  let text: string;
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) text = bytes.subarray(2).toString("utf16le");
+  else if (bytes[0] === 0xfe && bytes[1] === 0xff) text = Buffer.from(bytes.subarray(2)).swap16().toString("utf16le");
+  else if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) text = bytes.subarray(3).toString("utf8");
+  else text = bytes.toString("utf8");
+  return JSON.parse(text);
+}
 
 async function fileSize(filePath: string) {
   try {
@@ -147,12 +161,19 @@ export function createResultsSync(options: Options) {
     for (let attempt = 0; attempt < PARSE_RETRIES; attempt += 1) {
       if (await fileSize(resultsFile) === null) return;
       try {
-        payload = JSON.parse(await readFile(resultsFile, "utf8")) as ResultsPayload;
+        payload = await readJsonFile(resultsFile) as ResultsPayload;
         break;
       } catch {
         // The VR application may still be writing the file.
         await delay(timing.parseRetryMs);
       }
+    }
+
+    // The sessionId stops a session being saved twice when an upload is retried. When the
+    // VR app leaves it out, it is derived from the file's contents, so the same file
+    // always gets the same id, even if the launcher stops before the file is removed.
+    if (payload && typeof payload === "object" && (payload.sessionId == null || payload.sessionId === "")) {
+      payload.sessionId = `VR-${createHash("sha256").update(JSON.stringify(payload)).digest("hex").slice(0, 32)}`;
     }
 
     const valid = payload && typeof payload === "object"

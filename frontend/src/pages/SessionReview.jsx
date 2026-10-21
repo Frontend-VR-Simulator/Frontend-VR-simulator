@@ -108,7 +108,8 @@ function RoomReview({ session }) {
   const entry = session.rooms[0] || {};
   const steps = room ? roomSteps(room) : [];
   const detail = room && roomDetails[room.module]?.detail;
-  const attempts = model.sessions.filter((item) => item.type === "room" && item.traineeId === session.traineeId && item.module === session.module);
+  const attempts = model.roomSessions(session.module, session.traineeId);
+  const parent = session.session && session.session.rooms.length > 1 ? session.session : null;
   const notes = model.notes(session.id);
   const hasSteps = entry.steps?.length > 0;
   const duration = session.recordingSeconds || session.minutes * 60 || 1;
@@ -120,9 +121,9 @@ function RoomReview({ session }) {
       : null;
 
   return <>
-    <Heading title={session.title} description={`${session.learner} · Attempt ${session.attempt} · ${session.date} at ${session.time}`} action={<a className="btn ghost sm" href={backHref(view)}><Icon name="back" /> Back to sessions</a>} eyebrow="VR SESSION REVIEW" />
+    <Heading title={session.title} description={`${session.learner} · Attempt ${session.attempt} · ${session.date} at ${session.time}${parent ? ` · part of ${parent.label}` : ""}`} action={<div className="flex gap8">{parent && <a className="btn ghost sm" href={`#/${parent.href}`}><Icon name="layers" /> Whole session</a>}<a className="btn ghost sm" href={backHref(view)}><Icon name="back" /> Back to sessions</a></div>} eyebrow="VR SESSION REVIEW" />
     <div className="kpis">
-      <Kpi label="Assessment score" value={`${session.score}%`} detail="VR-generated score" icon="target" color="yellow" />
+      <Kpi label="Assessment score" value={`${session.score}%`} detail={entry.maxPoints ? `${entry.points} of ${entry.maxPoints} points` : "VR-generated score"} icon="target" color="yellow" />
       <Kpi label="Attempt" value={session.attempt} detail={`${plural(attempts.length, "attempt")} on record`} icon="rotate" color="blue" />
       <Kpi label="Critical errors" value={session.errors} detail="Errors recorded in session" icon="warning" color="orange" />
       <Kpi label="Recording" value={RECORDINGS_LIVE ? session.recording : "Coming soon"} detail={!RECORDINGS_LIVE ? "Session video in a later release" : session.recording === "Ready" ? "Video available" : session.recording === "Processing" ? "Video uploading" : "No video captured"} icon="video" color="purple" />
@@ -160,7 +161,7 @@ function RoomReview({ session }) {
         </div>
         <section className="panel">
           <Section title="Previous attempts" subtitle={`${plural(attempts.length, "recorded attempt")} for this room`} />
-          <div className="attempts">{attempts.map((attempt) => <a key={attempt.id} className={`attempt-card ${attempt.id === session.id ? "current" : ""}`} href={`#/session/${attempt.id}`}><span className="small">Attempt {attempt.attempt}</span><b>{attempt.score}%</b><span className="tiny muted">{attempt.date}</span><div className="mt12"><PctBar value={attempt.score} color={scoreColor(attempt.score)} tiny /></div></a>)}</div>
+          <div className="attempts">{attempts.map((attempt) => <a key={attempt.id} className={`attempt-card ${attempt.href === session.href ? "current" : ""}`} href={`#/${attempt.href}`}><span className="small">Attempt {attempt.attempt}</span><b>{attempt.score}%</b><span className="tiny muted">{attempt.date}</span><div className="mt12"><PctBar value={attempt.score} color={scoreColor(attempt.score)} tiny /></div></a>)}</div>
         </section>
       </div>
       <div className="stack">
@@ -205,21 +206,21 @@ function CompleteReview({ session }) {
   const delta = (a, b) => `${a - b >= 0 ? "+" : ""}${a - b}`;
 
   return <>
-    <Heading title={`Complete session · ${session.label}`} description={`${session.learner} · ${session.date} at ${session.time} · all ${roomCardOrder.length} rooms in order`} action={<a className="btn ghost sm" href={backHref(view)}><Icon name="back" /> Back to sessions</a>} eyebrow="COMBINED RESULTS" />
+    <Heading title={`Complete session · ${session.label}`} description={`${session.learner} · ${session.date} at ${session.time} · ${k.played} of ${roomCardOrder.length} rooms`} action={<a className="btn ghost sm" href={backHref(view)}><Icon name="back" /> Back to sessions</a>} eyebrow="COMBINED RESULTS" />
     <div className="kpis">
       <Kpi label="Combined score" value={`${k.score}%`} detail={`${k.pts} of ${k.max} points`} icon="target" color="yellow" />
-      <Kpi label="Rooms passed" value={`${k.passed} of ${roomCardOrder.length}`} detail={`≥ ${PASS_MARK}% with no critical error`} icon="checkcircle" color="mint" />
+      <Kpi label="Rooms passed" value={`${k.passed} of ${k.played}`} detail={`≥ ${PASS_MARK}% with no critical error`} icon="checkcircle" color="mint" />
       <Kpi label="Critical errors" value={k.errors} detail="Across all rooms" icon="warning" color="orange" />
-      <Kpi label="Total time" value={fmtMin(k.minutes)} detail="Whole run" icon="clock" color="blue" />
+      <Kpi label="Total time" value={fmtMin(k.minutes)} detail="Whole session" icon="clock" color="blue" />
     </div>
     <div className="grid cols2even mb22">
       <section className="panel">
-        <Section title="Session recording" subtitle={`${fmtMin(k.minutes)} · one recording for the whole run`} action={<RecordingChip status={session.recording} />} />
+        <Section title="Session recording" subtitle={`${fmtMin(k.minutes)} · one recording for the whole session`} action={<RecordingChip status={session.recording} />} />
         {!RECORDINGS_LIVE ? <RecordingSoon image={roomCards.gowning.image} /> : <>
         <div className={`video-box ${recording.url ? "playing" : ""}`} style={{ backgroundImage: `url('${assetUrl(roomCards.gowning.image)}')` }}>
           {recording.url ? <video {...recording.videoProps} /> : <>
             <button className="video-play" onClick={() => recording.play()} aria-label="Play recording" disabled={recording.loading}><Icon name={recording.loading ? "clock" : "play"} className="ico-lg" /></button>
-            <div className="video-caption"><Icon name="video" className="ico-sm" /> {session.recording === "Ready" ? "Complete run recording" : session.recording === "Processing" ? "Recording is uploading" : "Recording unavailable"}</div>
+            <div className="video-caption"><Icon name="video" className="ico-sm" /> {session.recording === "Ready" ? "Session recording" : session.recording === "Processing" ? "Recording is uploading" : "Recording unavailable"}</div>
           </>}
         </div>
         <div className="chapters">{chapters.filter((room) => room.recorded).map((room) => <button className="chapter" key={room.id} onClick={() => recording.play(room.at)}>{roomCardOrder.indexOf(room.id) + 1}. {roomById[room.id].name} <em>{fmtSeconds(room.at)}</em></button>)}</div>
@@ -234,11 +235,11 @@ function CompleteReview({ session }) {
       </section>
     </div>
     <section className="panel mb22">
-      <Section title="Results by room" subtitle="Each room is scored out of 100 points" action={<span className="bar-key" style={{ margin: 0 }}><span className="sbar-mark-key" />Pass mark {PASS_MARK}%</span>} />
+      <Section title="Results by room" subtitle="Each room is scored on its own points; open a room for its step results" action={<span className="bar-key" style={{ margin: 0 }}><span className="sbar-mark-key" />Pass mark {PASS_MARK}%</span>} />
       <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>ROOM</th><th style={{ minWidth: 200 }}>SCORE</th><th>POINTS</th><th>TIME</th><th>CRITICAL ERRORS</th>{previous && <th>VS PREVIOUS</th>}<th>RESULT</th></tr></thead><tbody>
         {k.rs.map((room, j) => {
           const ok = room.score >= PASS_MARK && !room.errors;
-          return <tr key={room.id}><td>{j + 1}</td><td><a className="row-heading" href={roomHref(room.id)}>{roomById[room.id].name}</a></td><td><ScoreBar value={room.score} mark={PASS_MARK} ok={ok} /></td><td><b>{room.score}</b>/100</td><td>{room.minutes} min<div className="row-sub">Target {roomCards[room.id].targetMin}</div></td><td>{room.errors}</td>{previous && <td>{delta(room.score, previous.rs[j].score)}</td>}<td>{room.recorded ? <ResultChip result={ok ? "Pass" : "Fail"} /> : <Chip>Not recorded</Chip>}</td></tr>;
+          return <tr key={room.id}><td>{j + 1}</td><td>{room.recorded ? <a className="row-heading" href={`#/session/${session.id}?room=${room.id}`}>{roomById[room.id].name}</a> : <span className="row-heading muted">{roomById[room.id].name}</span>}</td><td>{room.recorded ? <ScoreBar value={room.score} mark={PASS_MARK} ok={ok} /> : <span className="muted">–</span>}</td><td>{room.recorded ? <><b>{room.points}</b>/{room.maxPoints}</> : "–"}</td><td>{room.recorded ? `${room.minutes} min` : "–"}<div className="row-sub">Target {roomCards[room.id].targetMin}</div></td><td>{room.recorded ? room.errors : "–"}</td>{previous && <td>{room.recorded && previous.rs[j].recorded ? delta(room.score, previous.rs[j].score) : "–"}</td>}<td>{room.recorded ? <ResultChip result={ok ? "Pass" : "Fail"} /> : <Chip>Not played</Chip>}</td></tr>;
         })}
         <tr className="total-row"><td /><td><b>Combined</b></td><td><ScoreBar value={k.score} mark={PASS_MARK} ok={k.result === "Pass"} /></td><td><b>{k.pts}</b>/{k.max}</td><td>{fmtMin(k.minutes)}</td><td>{k.errors}</td>{previous && <td>{delta(k.score, previous.score)}</td>}<td><ResultChip result={k.result} /></td></tr>
       </tbody></table></div>
@@ -247,9 +248,11 @@ function CompleteReview({ session }) {
   </>;
 }
 
-export default function SessionReview({ id }) {
+export default function SessionReview({ id, room }) {
   const { model } = useApp();
   const session = model.sessionById.get(id);
+  const visit = session && room ? model.roomVisit(session, room) : null;
+  if (visit) return <RoomReview session={visit} key={`${session.id}-${room}`} />;
   if (!session) return <><Heading title="Session not found" description="This session does not exist or you do not have access to it." eyebrow="VR SESSION REVIEW" /><Empty>Check the link, or open the session from your session history.</Empty></>;
   return session.type === "complete" ? <CompleteReview session={session} key={session.id} /> : <RoomReview session={session} key={session.id} />;
 }

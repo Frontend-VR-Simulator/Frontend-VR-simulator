@@ -156,6 +156,44 @@ test("the legacy fixed results.json name is still accepted", async (t) => {
   await waitFor(async () => backend.created(sessionId).length === 1, "legacy upload");
 });
 
+test("a file without a sessionId gets one from its contents and is stored once", async (t) => {
+  const ctx = await setup(t);
+  await ctx.launch();
+  const payload = results("", { note: randomUUID() });
+  delete payload.sessionId;
+  await writeResults(ctx, payload, "result.json");
+  await waitFor(async () => (await sent(ctx)).length === 1, "generated-id upload");
+  const [sessionId] = (await sent(ctx)).map((name) => decodeURIComponent(name.replace(/\.json$/, "")));
+  assert.match(sessionId, /^VR-[0-9a-f]{32}$/);
+  assert.equal(backend.created(sessionId).length, 1);
+
+  // The same file written again maps to the same id, so it is not uploaded twice.
+  await writeResults(ctx, payload, "result.json");
+  await waitFor(async () => (await list(ctx.resultsDir)).length === 0, "repeat file removed");
+  assert.equal(backend.created(sessionId).length, 1);
+  assert.deepEqual(await sent(ctx), [`${sessionId}.json`]);
+});
+
+test("files with a UTF-8 or UTF-16 byte-order mark (PowerShell, Unreal) are accepted", async (t) => {
+  const ctx = await setup(t);
+  await ctx.launch();
+  const encodings = {
+    utf8bom: (text) => Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(text, "utf8")]),
+    utf16le: (text) => Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, "utf16le")]),
+    utf16be: (text) => Buffer.concat([Buffer.from([0xfe, 0xff]), Buffer.from(text, "utf16le").swap16()]),
+  };
+  const ids = [];
+  for (const [label, encode] of Object.entries(encodings)) {
+    const sessionId = id(label);
+    ids.push(sessionId);
+    const target = path.join(ctx.resultsDir, `results-${sessionId}.json`);
+    await writeFile(`${target}.tmp`, encode(JSON.stringify(results(sessionId))));
+    await rename(`${target}.tmp`, target);
+  }
+  await waitFor(async () => ids.every((sessionId) => backend.created(sessionId).length === 1), "BOM uploads");
+  assert.deepEqual(await rejected(ctx), []);
+});
+
 test("a file still being written under a .tmp name is ignored until it is renamed", async (t) => {
   const ctx = await setup(t);
   await ctx.launch();

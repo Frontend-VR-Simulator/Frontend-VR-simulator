@@ -22,7 +22,7 @@ export default function Workspace({ route }) {
   const { view } = useApp();
   const [first, second] = route.parts;
   if (first === "session") {
-    return <AppShell page={view === "trainer" ? "queue" : "sessions"}><SessionReview id={second} /></AppShell>;
+    return <AppShell page={view === "trainer" ? "queue" : "sessions"}><SessionReview id={second} room={route.query.get("room")} /></AppShell>;
   }
   const page = pages[view][second] ? second : "overview";
   const Page = pages[view][page];

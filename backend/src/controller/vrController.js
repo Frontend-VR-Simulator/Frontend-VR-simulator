@@ -27,12 +27,20 @@ function numberField(value, label, { min, max, optional = false }) {
   return number;
 }
 
+// Dates before 2000 are an engine's empty value (Unreal writes 0001-01-01), so an
+// optional date with one is treated as missing.
+const EARLIEST_DATE = Date.UTC(2000, 0, 1);
+
 function dateField(value, label, optional = false) {
   if (value == null && optional) return null;
   const time = typeof value === "string" ? Date.parse(value) : Number.NaN;
-  if (!Number.isFinite(time)) fail(`${label} must be an ISO 8601 date-time.`);
+  if (optional && Number.isFinite(time) && time < EARLIEST_DATE) return null;
+  if (!Number.isFinite(time) || time < EARLIEST_DATE) fail(`${label} must be an ISO 8601 date-time.`);
   return new Date(time).toISOString();
 }
+
+const MAX_POINTS = 100000;
+const roundTo2 = (value) => Math.round(value * 100) / 100;
 
 function textField(value, maxLength) {
   return value == null || value === "" ? null : String(value).slice(0, maxLength);
@@ -45,8 +53,8 @@ function normalizeStep(step, position, label) {
   return {
     index,
     name: textField(step.name, 200),
-    points: numberField(step.points, `${label}.steps[${position}].points`, { min: 0, max: 100, optional: true }),
-    maxPoints: numberField(step.maxPoints, `${label}.steps[${position}].maxPoints`, { min: 0, max: 100, optional: true }),
+    points: numberField(step.points, `${label}.steps[${position}].points`, { min: 0, max: MAX_POINTS, optional: true }),
+    maxPoints: numberField(step.maxPoints, `${label}.steps[${position}].maxPoints`, { min: 0, max: MAX_POINTS, optional: true }),
     critical: step.critical === true,
     error: textField(step.error, 500),
     timestampSeconds: numberField(step.timestampSeconds, `${label}.steps[${position}].timestampSeconds`, { min: 0, max: 86400, optional: true }),
@@ -60,9 +68,30 @@ function normalizeRoom(room, position) {
   if (room.steps != null && !Array.isArray(room.steps)) fail(`${label}.steps must be an array.`);
   if (room.competencies != null && !Array.isArray(room.competencies)) fail(`${label}.competencies must be an array.`);
 
-  const score = Math.round(numberField(room.score, `${label}.score`, { min: 0, max: 100 }) * 100) / 100;
   const durationSeconds = Math.round(numberField(room.durationSeconds, `${label}.durationSeconds`, { min: 0, max: 86400 }));
   const steps = (room.steps || []).slice(0, 100).map((step, index) => normalizeStep(step, index, label));
+
+  // Each room has its own point total. The score is the points earned as a percentage
+  // of the points available, so rooms with different totals can be compared.
+  const scored = steps.filter((step) => step.maxPoints != null);
+  let points;
+  let maxPoints;
+  if (scored.length) {
+    points = roundTo2(scored.reduce((sum, step) => sum + (step.points ?? 0), 0));
+    maxPoints = roundTo2(scored.reduce((sum, step) => sum + step.maxPoints, 0));
+    if (points > maxPoints) fail(`${label} earned more points than its steps allow.`);
+  } else if (room.maxPoints != null) {
+    // Rooms without step results can send their own totals.
+    maxPoints = numberField(room.maxPoints, `${label}.maxPoints`, { min: 0, max: MAX_POINTS });
+    points = numberField(room.points, `${label}.points`, { min: 0, max: maxPoints });
+  } else if (room.score != null) {
+    // Older builds send only a score out of 100.
+    points = numberField(room.score, `${label}.score`, { min: 0, max: 100 });
+    maxPoints = 100;
+  } else {
+    fail(`${label} needs steps with points and maxPoints, or points and maxPoints for the room.`);
+  }
+  const score = maxPoints > 0 ? roundTo2((100 * points) / maxPoints) : 0;
   const criticalErrors = steps.length
     ? steps.filter((step) => step.error && step.critical).length
     : Math.round(numberField(room.criticalErrors ?? 0, `${label}.criticalErrors`, { min: 0, max: 1000 }));
@@ -74,6 +103,8 @@ function normalizeRoom(room, position) {
   return {
     roomId: room.roomId,
     score,
+    points,
+    maxPoints,
     durationSeconds,
     minutes: Math.round(durationSeconds / 60),
     criticalErrors,
@@ -84,34 +115,36 @@ function normalizeRoom(room, position) {
   };
 }
 
-// Validates a results.json payload (schemaVersion 1) and derives the stored session.
+export const SCHEMA_VERSION = 2;
+
+// Validates a results file and derives the stored session. Every session is a run
+// through 1 to 11 rooms; each room in it is also counted as an attempt at that room.
 export function normalizeResults(body) {
   if (!isObject(body)) fail("The results file must contain a JSON object.");
-  if (body.schemaVersion !== 1) fail("Unsupported schemaVersion. Expected 1.");
+  if (typeof body.schemaVersion === "number" && body.schemaVersion > SCHEMA_VERSION) fail(`Unsupported schemaVersion. Expected ${SCHEMA_VERSION} or lower.`);
   if (typeof body.sessionId !== "string" || !/^[A-Za-z0-9._:-]{8,128}$/.test(body.sessionId)) {
     fail("sessionId must be 8-128 characters using letters, digits, '.', '_', ':' or '-'.");
   }
   if (typeof body.userId !== "string" || !body.userId) fail("userId is required.");
-  if (body.type !== "room" && body.type !== "complete") fail('type must be "room" or "complete".');
   if (!Array.isArray(body.rooms) || body.rooms.length === 0) fail("rooms must contain at least one room.");
-  if (body.type === "room" && body.rooms.length !== 1) fail("A room session must contain exactly one room.");
   if (body.rooms.length > ROOMS.length) fail(`rooms can contain at most ${ROOMS.length} rooms.`);
   if (body.recording != null && !isObject(body.recording)) fail("recording must be an object or null.");
 
   const rooms = body.rooms.map(normalizeRoom);
   if (new Set(rooms.map((room) => room.roomId)).size !== rooms.length) fail("Each room may appear only once per session.");
 
-  // A complete run is scored out of every room in the suite, so skipped rooms count as zero.
-  const divisor = body.type === "complete" ? ROOMS.length : 1;
-  const score = Math.round((rooms.reduce((sum, room) => sum + room.score, 0) / divisor) * 100) / 100;
+  // The session score covers only the rooms played: all points earned out of all points available.
+  const points = rooms.reduce((sum, room) => sum + room.points, 0);
+  const maxPoints = rooms.reduce((sum, room) => sum + room.maxPoints, 0);
+  const score = maxPoints > 0 ? roundTo2((100 * points) / maxPoints) : 0;
   const criticalErrors = rooms.reduce((sum, room) => sum + room.criticalErrors, 0);
   const durationSeconds = rooms.reduce((sum, room) => sum + room.durationSeconds, 0);
 
   return {
     sessionId: body.sessionId,
     userId: body.userId,
-    type: body.type,
-    roomId: body.type === "room" ? rooms[0].roomId : null,
+    type: "complete",
+    roomId: rooms.length === 1 ? rooms[0].roomId : null,
     rooms,
     score,
     criticalErrors,
@@ -131,7 +164,7 @@ async function loadUser(id) {
 }
 
 function sessionLabel(session) {
-  return session.session_type === "complete" ? "Complete session" : roomName(session.room_id);
+  return session.room_id ? roomName(session.room_id) : "Complete session";
 }
 
 function publicSession(session) {
@@ -189,11 +222,9 @@ export async function ingestResults(req, res) {
     return res.status(200).json({ duplicate: true, session: publicSession(existing) });
   }
 
-  // Attempts are numbered by completion time. Results queued offline can arrive after
-  // later sessions, so any later attempts move up by one.
-  let attemptQuery = supabase.from("training_sessions").select("id, attempt, completed_at").eq("trainee_id", actor.id).eq("session_type", results.type);
-  if (results.roomId) attemptQuery = attemptQuery.eq("room_id", results.roomId);
-  const { data: previous, error: previousError } = await attemptQuery;
+  // Sessions are numbered per trainee by completion time. Results queued offline can
+  // arrive after later sessions, so any later sessions move up by one.
+  const { data: previous, error: previousError } = await supabase.from("training_sessions").select("id, attempt, completed_at").eq("trainee_id", actor.id);
   if (previousError) return res.status(500).json({ message: "Could not save training results." });
   const completedAt = Date.parse(results.completedAt);
   const earlier = previous.filter((item) => Date.parse(item.completed_at) <= completedAt).length;

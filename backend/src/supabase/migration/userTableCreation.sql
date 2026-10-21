@@ -60,8 +60,8 @@ ALTER TABLE public.invitations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.training_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.desktop_auth_codes ENABLE ROW LEVEL SECURITY;
 
--- VR results ingestion. A session is one results.json written by the VR app:
--- either one room on its own or a complete run through every room.
+-- VR results ingestion. A session is one results file written by the VR app,
+-- covering 1 to 11 rooms. external_id is its sessionId and blocks duplicates.
 ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS external_id TEXT UNIQUE;
 ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS session_type TEXT NOT NULL DEFAULT 'room';
 ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS room_id TEXT;
@@ -79,6 +79,26 @@ ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS recording_duration_second
 ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS raw_payload JSONB;
 ALTER TABLE training_sessions DROP CONSTRAINT IF EXISTS training_sessions_session_type_check;
 ALTER TABLE training_sessions ADD CONSTRAINT training_sessions_session_type_check CHECK (session_type IN ('room', 'complete'));
+-- Every session is now a run through 1 to 11 rooms ('complete'); rooms inside it are
+-- each counted as an attempt at that room. Older single-room sessions are converted.
+UPDATE training_sessions SET session_type = 'complete' WHERE session_type <> 'complete';
+ALTER TABLE training_sessions ALTER COLUMN session_type SET DEFAULT 'complete';
+-- Older sessions stored rooms scored out of 100 and divided a run by all 11 rooms.
+-- Rescore them over the rooms played. Rooms stored with maxPoints are already current.
+UPDATE training_sessions
+SET score = sub.score,
+    result = CASE
+        WHEN training_sessions.critical_errors > 0 THEN 'Fail'
+        WHEN sub.score >= 80 THEN 'Pass'
+        WHEN sub.score >= 70 THEN 'Review'
+        ELSE 'Fail' END
+FROM (
+    SELECT id, ROUND(AVG((room->>'score')::numeric), 2) AS score
+    FROM training_sessions, jsonb_array_elements(rooms) AS room
+    GROUP BY id
+    HAVING bool_and(NOT (room ? 'maxPoints'))
+) AS sub
+WHERE training_sessions.id = sub.id AND training_sessions.score <> sub.score;
 ALTER TABLE training_sessions DROP CONSTRAINT IF EXISTS training_sessions_result_check;
 ALTER TABLE training_sessions ADD CONSTRAINT training_sessions_result_check CHECK (result IN ('Pass', 'Review', 'Fail'));
 ALTER TABLE training_sessions DROP CONSTRAINT IF EXISTS training_sessions_recording_status_check;

@@ -138,16 +138,19 @@ file:
 ```
 
 **Unreal writes each session to its own file in the folder of `-ResultsPath`**,
-named `results-<sessionId>.json`, for example
-`C:\...\results\results-VR-1048.json`. Use only letters, digits, `.`, `_` and
-`-` in the file name (replace any `:` from the sessionId with `_`); the
-`sessionId` inside the file is what identifies the session. Never reuse or
-overwrite another session's file. Write it as `results-<sessionId>.json.tmp` and
-rename it when complete; files ending in `.tmp` are ignored. Write the recording
-before the results file.
+named `results-<something unique>.json`, for example
+`C:\...\results\results-20261019-094600.json`. Use only letters, digits, `.`,
+`_` and `-` in the file name. Never reuse or overwrite another session's file.
+Write it as `results-<name>.json.tmp` and rename it when complete; files ending
+in `.tmp` are ignored. Write the recording before the results file.
 
-Builds that still write the fixed `-ResultsPath` file name (`results.json`) keep
-working, but a second session that finishes before the launcher has picked up
+Unreal does not have to send a `sessionId`. When a file has none, the launcher
+derives one from the file's contents (`VR-` plus 32 hex characters) before
+queueing it, so a retried upload, or the same file found again, is never stored
+twice. A `sessionId` the VR app does send is used as it is.
+
+Builds that still write the fixed `-ResultsPath` file name (`results.json`, or
+`result.json`) keep working, but a second session that finishes before the launcher has picked up
 the first would overwrite it, so new builds should use unique names.
 
 By default the folder is `results\` in the launcher's user-data directory. Set
@@ -157,7 +160,8 @@ example next to the installed application); its folder is the one watched.
 The launcher watches that folder, scans it every 5 seconds and on every start,
 so files written while it was closed are picked up too. For each file it:
 
-1. Copies it into `results-outbox\` under its sessionId, then deletes the
+1. Gives it a sessionId if it has none, copies it into `results-outbox\` under
+   that sessionId, then deletes the
    original. A file whose sessionId is already queued or sent is just deleted.
 2. Uploads it to `POST /api/v1/vr/results` with the signed-in user's token. The
    server checks that `userId` matches the token, scores the attempt, and updates
@@ -168,7 +172,7 @@ so files written while it was closed are picked up too. For each file it:
    "Unavailable" after about 10 minutes of retries.
 4. Moves the entry to `results-sent\`. Entries the server rejects (invalid data,
    or results for a different user) go to `results-rejected\`, as do files
-   that are not valid JSON or have no `sessionId` or `userId`.
+   that are not valid JSON or have no `userId`.
 
 Failed uploads stay in the outbox and are retried every minute and after each
 sign-in, including after the launcher or the computer restarts. Results are
@@ -180,47 +184,66 @@ Regression tests for this hand-off run with `npm test`.
 
 ```json
 {
-  "schemaVersion": 1,
-  "sessionId": "VR-2026-10-19-0001",
+  "schemaVersion": 2,
   "userId": "<userId from ue-session.json>",
-  "type": "room",
   "startedAt": "2026-10-19T09:12:00Z",
   "completedAt": "2026-10-19T09:46:00Z",
   "rooms": [
     {
-      "roomId": "granulation",
-      "score": 74,
-      "durationSeconds": 2040,
+      "roomId": "gowning",
+      "durationSeconds": 300,
       "steps": [
-        { "index": 0, "points": 10, "maxPoints": 10, "critical": false, "error": null, "timestampSeconds": 35 },
-        { "index": 1, "points": 0, "maxPoints": 15, "critical": true, "error": "Binder added with the impeller stopped", "timestampSeconds": 410 }
+        { "index": 0, "points": 2, "maxPoints": 2, "critical": false, "error": null, "timestampSeconds": 20 },
+        { "index": 1, "points": 3, "maxPoints": 3, "critical": false, "error": null, "timestampSeconds": 140 }
+      ]
+    },
+    {
+      "roomId": "granulation",
+      "durationSeconds": 1740,
+      "recordingOffsetSeconds": 300,
+      "steps": [
+        { "index": 0, "points": 10, "maxPoints": 10, "critical": false, "error": null, "timestampSeconds": 335 },
+        { "index": 1, "points": 0, "maxPoints": 15, "critical": true, "error": "Binder added with the impeller stopped", "timestampSeconds": 710 }
       ],
       "competencies": [{ "name": "Equipment handling", "score": 80 }]
     }
   ],
-  "recording": { "path": "recordings/VR-2026-10-19-0001.mp4", "durationSeconds": 2040 }
+  "recording": { "path": "recordings/20261019-094600.mp4", "durationSeconds": 2040 }
 }
 ```
 
+Every session is a run through 1 to 11 rooms, in any combination, each room
+listed once. Each room in it also counts as an attempt at that room, so the web
+app shows the session as a whole and every room on its own.
+
 | Field | Required | Notes |
 | --- | --- | --- |
-| `schemaVersion` | yes | Always `1`. |
-| `sessionId` | yes | Unique per attempt, 8-128 characters of letters, digits, `.`, `_`, `:` or `-`. |
+| `schemaVersion` | no | `2`. Files with a higher version are rejected. |
+| `sessionId` | no | Added by the launcher when missing. If sent: unique per session, 8-128 characters of letters, digits, `.`, `_`, `:` or `-`. |
 | `userId` | yes | Copy from `ue-session.json`. |
-| `type` | yes | `"room"` (exactly one room) or `"complete"` (a run through the suite; rooms not visited score 0). |
-| `completedAt` | yes | ISO 8601. `startedAt` is optional. Attempts are numbered by this time. |
+| `type` | no | Ignored. Older builds sent `"room"` or `"complete"`. |
+| `completedAt` | yes | ISO 8601 UTC. Sessions are numbered by this time. |
+| `startedAt` | no | ISO 8601 UTC. An empty engine date (before 2000, e.g. Unreal's `0001-01-01`) is treated as missing. |
 | `rooms[].roomId` | yes | One of `gowning`, `wash`, `cleanstore`, `goods`, `dispensary`, `granulation`, `blending`, `tableting`, `blister`, `cartoning`, `water`. |
-| `rooms[].score` | yes | 0-100, the VR assessment score. |
 | `rooms[].durationSeconds` | yes | Time spent in the room. |
-| `rooms[].steps[]` | no | `index` is the 0-based step in the room's process order. `error` is a short description, or `null`. An error on a `critical` step fails the attempt. `timestampSeconds` places a marker on the recording. |
+| `rooms[].steps[]` | yes* | `points` and `maxPoints` per step, any totals (up to 100000 each). `index` is the 0-based step in the room's process order. `error` is a short description, or `null`. An error on a `critical` step fails the attempt. `timestampSeconds` places a marker on the recording. |
+| `rooms[].points`, `rooms[].maxPoints` | * | Only for a room sent without step points. |
+| `rooms[].score` | * | Older builds only: a 0-100 score, used when there are no points. Ignored when points are sent. |
 | `rooms[].criticalErrors` | no | Used only when `steps` is omitted. |
-| `rooms[].recordingOffsetSeconds` | no | For complete runs: where the room starts in the recording. |
+| `rooms[].recordingOffsetSeconds` | no | Where the room starts in the session recording. |
 | `rooms[].competencies[]` | no | Optional skill breakdown shown on the session review. |
 | `recording` | no | `null` when nothing was recorded. `path` is absolute or relative to the results file's folder. |
 
-Result rules (server side): a critical error means **Fail**; otherwise a score of
-80 or more is a **Pass**, 70-79 is **Review** (for a trainer to sign off) and
-below 70 is a **Fail**.
+\* Each room needs step points, room points, or (older builds) a score.
+
+Scoring (server side): the server works out every score from the points.
+
+- Room score = points earned in the room ÷ the room's `maxPoints`, as a percentage.
+- Session score = all points earned ÷ all `maxPoints` of the rooms played. Rooms
+  not played don't count.
+- A critical error means **Fail**; otherwise 80% or more is a **Pass**, 70-79% is
+  **Review** (for a trainer to sign off) and below 70% is a **Fail**. This
+  applies to each room and to the session.
 
 ## Code signing
 

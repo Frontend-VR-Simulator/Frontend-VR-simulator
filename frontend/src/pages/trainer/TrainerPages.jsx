@@ -33,7 +33,7 @@ export function TrainerHome() {
       <section className="panel">
         <Section title="Review queue" subtitle="Prioritized by assessment outcome" action={<a className="link" href="#/trainer/queue">Open queue <Icon name="arrow" /></a>} />
         {review.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>LEARNER</th><th>ROOM</th><th>SCORE</th><th>STATUS</th><th /></tr></thead><tbody>{review.slice(0, 8).map((session) => {
-          const open = () => goto(`session/${session.id}`);
+          const open = () => goto(session.href);
           return <tr className="clickable" key={session.id} tabIndex={0} onClick={open} onKeyDown={openOnKey(open)}><td><b className="row-heading">{session.learner}</b><div className="row-sub">{session.date}</div></td><td>{session.title}</td><td style={{ color: colors[scoreColor(session.score)], fontWeight: 750 }}>{session.score}%</td><td><ResultChip result={session.result} /></td><td><Icon name="chevron" /></td></tr>;
         })}</tbody></table></div> : <Empty>No sessions are waiting for review.</Empty>}
       </section>
@@ -79,7 +79,7 @@ function LearnerSessionsModal({ learner, onClose }) {
   return <Modal onClose={onClose} label={`${learner.name} sessions`}>
     <ModalHead title={`${learner.name} · Sessions`} onClose={onClose} />
     {list.length ? list.map((session) => {
-      const open = () => goto(`session/${session.id}`);
+      const open = () => goto(session.href);
       return <div className="list-item clickable" key={session.id} tabIndex={0} onClick={open} onKeyDown={openOnKey(open)}><div className="grow"><div className="row-heading">{session.title}</div><div className="row-sub">{session.label || `Attempt ${session.attempt}`} · {session.date}</div></div><b>{session.score}%</b><Icon name="chevron" /></div>;
     }) : <p className="small">No sessions available yet.</p>}
   </Modal>;
@@ -116,9 +116,9 @@ export function SessionsPage({ onlyRecordings = false, query: routeQuery }) {
   const { model } = useApp();
   const [query, setQuery] = useState("");
   const room = roomById[routeQuery?.get("room")];
-  const list = model.sessions.slice().reverse()
-    .filter((session) => !onlyRecordings || session.recording !== "Unavailable")
-    .filter((session) => !room || session.rooms.some((item) => item.roomId === room.id));
+  // Filtered to a room, the list shows that room's attempts, including rooms inside longer sessions.
+  const list = (room ? model.roomSessions(room.id) : model.sessions).slice().reverse()
+    .filter((session) => !onlyRecordings || session.recording !== "Unavailable");
   if (onlyRecordings && !RECORDINGS_LIVE) return <>
     <Heading title="Session recordings" description="Video recordings of every VR attempt, linked to its assessment." eyebrow="RECORDING LIBRARY" />
     <section className="panel"><Section title="Recording library" subtitle="Session video arrives in a later release" action={<Chip color="purple">Coming soon</Chip>} /><RecordingSoon minHeight={340} /></section>
