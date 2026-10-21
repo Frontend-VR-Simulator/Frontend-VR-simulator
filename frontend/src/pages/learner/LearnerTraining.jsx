@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { PASS_MARK, roomById, roomCardOrder, roomCards, roomDetails, roomPoints, roomSteps, roomVideos } from "../../content/catalog";
+import { PASS_MARK, roomById, roomCardOrder, roomCards, roomDetails, roomPoints, roomSteps, roomTotalPoints, roomVideos, tracksCriticalErrors } from "../../content/catalog";
 import { Chip, Empty, Heading, Icon, PctBar, Sparkline, StepDetail } from "../../components/ui";
 import { assetUrl } from "../../lib/visual";
 import { useApp } from "../../lib/context";
-import { fmtSeconds } from "../../lib/format";
+import { fmtClockSeconds, fmtDate, fmtHms, fmtSeconds } from "../../lib/format";
 
 function roomStatus(progress) {
   return progress === 100 ? ["Complete", "mint"] : progress ? ["In progress", "yellow"] : ["Not started", "gray"];
@@ -92,12 +92,12 @@ function RoomDetail({ room }) {
   const doneCount = progress.done.filter(Boolean).length;
   const n = roomCardOrder.indexOf(room.id) + 1;
   const lastSession = progress.last?.session;
+  const totalPoints = roomTotalPoints(room.id);
+  const critical = tracksCriticalErrors(room.id);
   const achievements = [
     ["Qualified", progress.progress === 100, "badge"],
     ["Passed first time", Boolean(stats.firstPass), "zap"],
     ["Score 90%+", seen && stats.score >= 90, "trophy"],
-    ["Zero critical errors", seen && stats.errors === 0, "shield"],
-    ["Under target time", seen && stats.minutes <= card.targetMin, "timer"],
   ];
   const stat = (label, value, target, ok) => <div className="rc-stat"><span>{label}</span><b className={seen && ok != null ? (ok ? "ok" : "off") : ""}>{seen ? value : "—"}</b><em>{target}</em></div>;
 
@@ -120,8 +120,8 @@ function RoomDetail({ room }) {
     </section>
 
     <section className="panel part">
-      <PartHead number={2} title="Process steps" sub={detail ? `${steps.length} steps in order. Open a step for actions, pass criteria and common errors.` : `${steps.length} steps, in the order you perform them`} />
-      <div className="points-key"><span><b>100</b> points in this room</span><span>Pass mark <b>{PASS_MARK}</b></span><span><Icon name="warning" className="ico-sm" /> An error on a <b>critical</b> step fails the attempt ({points.filter((step) => step[1]).length} critical steps)</span></div>
+      <PartHead number={2} title="Process steps" sub={detail ? `${steps.length} steps in order. Open a step for its actions.` : `${steps.length} steps, in the order you perform them`} />
+      <div className="points-key"><span><b>{totalPoints}</b> points in this room</span><span>Pass mark <b>{PASS_MARK}%</b></span>{critical && <span><Icon name="warning" className="ico-sm" /> An error on a <b>critical</b> step fails the attempt ({points.filter((step) => step[1]).length} critical steps)</span>}</div>
       {steps.map((name, index) => {
         const head = <>
           <span className="step-num" style={{ "--color": progress.done[index] ? "var(--mint)" : "var(--yellow)" }}>{index + 1}</span>
@@ -138,13 +138,15 @@ function RoomDetail({ room }) {
     <section className="panel part"><PartHead number={3} title="Watch how it is done" sub="A walkthrough of the process before you enter VR" /><RoomVideo room={room} card={card} /></section>
 
     <section className="panel part">
-      <PartHead number={4} title="Your progress and results" sub={seen ? `${stats.sessions} session${stats.sessions > 1 ? "s" : ""} recorded` : "Your results appear here after your first VR session"} />
+      <PartHead number={4} title="Your progress and results" sub={seen ? `${stats.sessions} session${stats.sessions > 1 ? "s" : ""} recorded · last completed ${fmtDate(stats.completedAt)} at ${fmtClockSeconds(stats.completedAt)}` : "Your results appear here after your first VR session"} />
       <div className="progress-line"><span className="small muted">{doneCount} of {steps.length} steps complete</span><span className="strong">{progress.progress}%</span></div>
       <PctBar value={progress.progress} color={progress.progress === 100 ? "mint" : "yellow"} />
       <div className="rc-stats mt16">
         {stat("Score", `${stats.score}%`, `Pass mark ${PASS_MARK}%`, stats.score >= PASS_MARK)}
-        {stat("Time in room", `${stats.minutes} min`, `Target ${card.targetMin} min`, stats.minutes <= card.targetMin)}
-        {stat("Critical errors", stats.errors, "Target 0", stats.errors === 0)}
+        {stat("Duration", fmtHms(stats.seconds), `Latest attempt · target ${card.targetMin} min`, stats.seconds <= card.targetMin * 60)}
+        {critical
+          ? stat("Critical errors", stats.errors, "Target 0", stats.errors === 0)
+          : stat("Completed", seen ? fmtClockSeconds(stats.completedAt) : null, seen ? fmtDate(stats.completedAt) : "Latest attempt", null)}
         {stat("First-time pass", `${stats.pass}%`, "Of first attempts", null)}
       </div>
       <div className="grid cols2even mt16">
@@ -152,7 +154,7 @@ function RoomDetail({ room }) {
           <h4 className="room-h">Score trend</h4>
           {seen ? <Sparkline values={stats.trend} firstLabel="First session" lastLabel="Latest" /> : <Empty>Your trend appears after your first session.</Empty>}
           {earned && <>
-            <h4 className="room-h">Your points by step · {earned.reduce((a, b) => a + b, 0)} of 100</h4>
+            <h4 className="room-h">Your points by step · {earned.reduce((a, b) => a + b, 0)} of {totalPoints}</h4>
             {steps.map((name, index) => <div className="err-step" key={name} title={stats.stepErr ? `Errors at this step in ${stats.stepErr[index]}% of your attempts` : undefined}><span className={index === worst ? "worst" : ""}>{index + 1}. {name}</span><div className="room-bar"><i className={earned[index] < points[index][0] ? "lost" : ""} style={{ width: `${(earned[index] / points[index][0]) * 100}%` }} /></div><b>{earned[index]}/{points[index][0]}</b></div>)}
             {stats.stepErr && <p className="tiny muted">Hover a step to see how often you make errors there.</p>}
           </>}
@@ -160,11 +162,7 @@ function RoomDetail({ room }) {
         <div>
           <h4 className="room-h">Achievements · {achievements.filter((item) => item[1]).length} of {achievements.length}</h4>
           <div className="ach-grid">{achievements.map(([title, on, icon]) => <div className={`ach ${on ? "on" : ""}`} key={title}><span className="ach-icon"><Icon name={on ? icon : "lock"} /></span><b>{title}</b><span>{on ? "Earned" : "Not earned yet"}</span></div>)}</div>
-          {seen && stats.top.length > 0 && <>
-            <h4 className="room-h">Your most common errors</h4>
-            {stats.top.map(([text, count]) => <div className="room-err" key={text}><span className="task-icon tone-red" style={{ width: 28, height: 28 }}><Icon name="warning" className="ico-sm" /></span><span className="grow">{text}</span><b>{count}×</b></div>)}
-          </>}
-          {lastSession && <a className="btn primary sm mt16" href={`#/session/${lastSession.id}`}>View recent assessment <Icon name="arrow" /></a>}
+          {lastSession && <a className="btn primary sm mt16" href={`#/${progress.last.session.rooms.length > 1 ? `session/${lastSession.id}?room=${room.id}` : lastSession.href}`}>View recent assessment <Icon name="arrow" /></a>}
         </div>
       </div>
     </section>

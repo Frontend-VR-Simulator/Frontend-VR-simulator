@@ -1,5 +1,5 @@
 import { PASS_MARK, roomById, roomCardOrder, roomName, roomSteps, rooms } from "../content/catalog";
-import { daysUntil, fmtClock, fmtDate, fmtDateTime } from "./format";
+import { daysUntil, fmtClock, fmtClockSeconds, fmtDate, fmtDateTime } from "./format";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export const SERIES_COLORS = ["blue", "yellow", "purple", "orange", "cyan", "mint"];
@@ -34,7 +34,9 @@ function normalizeSession(raw, userById) {
     completedAt,
     date: fmtDate(completedAt),
     time: fmtClock(completedAt),
+    timeSeconds: fmtClockSeconds(completedAt),
     minutes: raw.duration_minutes ?? 0,
+    seconds: roomResults.length ? roomResults.reduce((sum, room) => sum + (Number(room.durationSeconds) || 0), 0) : (raw.duration_minutes ?? 0) * 60,
     score: Math.round(Number(raw.score)),
     result: raw.result || "Review",
     errors: raw.critical_errors ?? 0,
@@ -72,6 +74,7 @@ function roomVisit(session, room, attempt) {
     result: room.result || session.result,
     errors: room.criticalErrors ?? 0,
     minutes: room.minutes ?? Math.round((room.durationSeconds || 0) / 60),
+    seconds: Number(room.durationSeconds) || 0,
     issues: stepIssues(room),
     rooms: [room],
     session,
@@ -131,6 +134,8 @@ function learnerStats(roomId, entries) {
     sessions: entries.length,
     learners: 1,
     minutes: last.minutes,
+    seconds: Number(last.durationSeconds) || 0,
+    completedAt: last.session.completedAt,
     score: Math.round(last.score),
     pass: entries[0].result === "Pass" ? 100 : 0,
     firstPass: entries[0].result === "Pass",
@@ -166,16 +171,17 @@ export function completeSummary(session) {
   const byRoom = new Map(session.rooms.map((room) => [room.roomId, room]));
   const rs = roomCardOrder.map((id) => {
     const room = byRoom.get(id);
-    return { id, score: room ? Math.round(room.score) : 0, points: room?.points ?? 0, maxPoints: room?.maxPoints ?? 0, minutes: room ? room.minutes ?? Math.round(room.durationSeconds / 60) : 0, errors: room?.criticalErrors ?? 0, recorded: Boolean(room), offset: room?.recordingOffsetSeconds ?? null };
+    return { id, score: room ? Math.round(room.score) : 0, points: room?.points ?? 0, maxPoints: room?.maxPoints ?? 0, minutes: room ? room.minutes ?? Math.round(room.durationSeconds / 60) : 0, seconds: Number(room?.durationSeconds) || 0, errors: room?.criticalErrors ?? 0, recorded: Boolean(room), offset: room?.recordingOffsetSeconds ?? null };
   });
   const played = rs.filter((room) => room.recorded);
   const round = (value) => Math.round(value * 100) / 100;
   const pts = round(played.reduce((sum, room) => sum + room.points, 0));
   const max = round(played.reduce((sum, room) => sum + room.maxPoints, 0));
   const minutes = rs.reduce((sum, room) => sum + room.minutes, 0);
+  const seconds = rs.reduce((sum, room) => sum + room.seconds, 0);
   const errors = rs.reduce((sum, room) => sum + room.errors, 0);
   const passed = played.filter((room) => room.score >= PASS_MARK && !room.errors).length;
-  return { rs, played: played.length, pts, max, score: session.score, minutes, errors, passed, result: session.result };
+  return { rs, played: played.length, pts, max, score: session.score, minutes, seconds, errors, passed, result: session.result };
 }
 
 export function programStatus(program) {

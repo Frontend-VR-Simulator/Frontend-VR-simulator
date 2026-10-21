@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
-import { PASS_MARK, roomById, roomCardOrder, roomCards, roomDetails, roomSteps } from "../content/catalog";
+import { PASS_MARK, roomById, roomCardOrder, roomCards, roomDetails, roomSteps, tracksCriticalErrors } from "../content/catalog";
 import { Chip, Empty, Heading, Icon, Kpi, PctBar, RecordingChip, RecordingSoon, ResultChip, ScoreBar, Section, SkillsBlock, StepDetail } from "../components/ui";
 import { RECORDINGS_LIVE } from "../config/features";
 import { assetUrl, colors, scoreColor } from "../lib/visual";
 import { useApp } from "../lib/context";
 import { errorMessage } from "../lib/api";
 import { completeSummary, SERIES_COLORS } from "../lib/model";
-import { fmtMin, fmtSeconds, plural } from "../lib/format";
+import { fmtHms, fmtSeconds, plural } from "../lib/format";
 
 const backHref = (view) => `#/${view}/${view === "trainer" ? "queue" : "sessions"}`;
 
@@ -110,6 +110,7 @@ function RoomReview({ session }) {
   const detail = room && roomDetails[room.module]?.detail;
   const attempts = model.roomSessions(session.module, session.traineeId);
   const parent = session.session && session.session.rooms.length > 1 ? session.session : null;
+  const critical = tracksCriticalErrors(session.module);
   const notes = model.notes(session.id);
   const hasSteps = entry.steps?.length > 0;
   const duration = session.recordingSeconds || session.minutes * 60 || 1;
@@ -121,11 +122,11 @@ function RoomReview({ session }) {
       : null;
 
   return <>
-    <Heading title={session.title} description={`${session.learner} · Attempt ${session.attempt} · ${session.date} at ${session.time}${parent ? ` · part of ${parent.label}` : ""}`} action={<div className="flex gap8">{parent && <a className="btn ghost sm" href={`#/${parent.href}`}><Icon name="layers" /> Whole session</a>}<a className="btn ghost sm" href={backHref(view)}><Icon name="back" /> Back to sessions</a></div>} eyebrow="VR SESSION REVIEW" />
+    <Heading title={session.title} description={`${session.learner} · Attempt ${session.attempt} · completed ${session.date} at ${session.timeSeconds}${parent ? ` · part of ${parent.label}` : ""}`} action={<div className="flex gap8">{parent && <a className="btn ghost sm" href={`#/${parent.href}`}><Icon name="layers" /> Whole session</a>}<a className="btn ghost sm" href={backHref(view)}><Icon name="back" /> Back to sessions</a></div>} eyebrow="VR SESSION REVIEW" />
     <div className="kpis">
       <Kpi label="Assessment score" value={`${session.score}%`} detail={entry.maxPoints ? `${entry.points} of ${entry.maxPoints} points` : "VR-generated score"} icon="target" color="yellow" />
       <Kpi label="Attempt" value={session.attempt} detail={`${plural(attempts.length, "attempt")} on record`} icon="rotate" color="blue" />
-      <Kpi label="Critical errors" value={session.errors} detail="Errors recorded in session" icon="warning" color="orange" />
+      {critical ? <Kpi label="Critical errors" value={session.errors} detail="Errors recorded in session" icon="warning" color="orange" /> : <Kpi label="Duration" value={fmtHms(session.seconds)} detail={`Completed ${session.timeSeconds}`} icon="clock" color="orange" />}
       <Kpi label="Recording" value={RECORDINGS_LIVE ? session.recording : "Coming soon"} detail={!RECORDINGS_LIVE ? "Session video in a later release" : session.recording === "Ready" ? "Video available" : session.recording === "Processing" ? "Video uploading" : "No video captured"} icon="video" color="purple" />
     </div>
     <div className="review-grid">
@@ -151,8 +152,9 @@ function RoomReview({ session }) {
             <PctBar value={session.score} color={scoreColor(session.score)} />
             <div className="divider" />
             <div className="flex-between"><span className="muted small">Final outcome</span><ResultChip result={session.result} /></div>
-            <div className="flex-between mt12"><span className="muted small">Critical errors</span><b>{session.errors}</b></div>
-            <div className="flex-between mt12"><span className="muted small">Time in room</span><b>{session.minutes} min{room ? ` · target ${roomCards[room.id].targetMin}` : ""}</b></div>
+            {critical && <div className="flex-between mt12"><span className="muted small">Critical errors</span><b>{session.errors}</b></div>}
+            <div className="flex-between mt12"><span className="muted small">Duration</span><b>{fmtHms(session.seconds)}{room ? ` · target ${roomCards[room.id].targetMin} min` : ""}</b></div>
+            <div className="flex-between mt12"><span className="muted small">Completed</span><b>{session.date} at {session.timeSeconds}</b></div>
           </section>
           <section className="panel">
             <Section title="Competency scores" subtitle={entry.competencies?.length ? "Assessment by skill" : "Points earned by step"} />
@@ -204,18 +206,19 @@ function CompleteReview({ session }) {
   const weakest = k.rs.filter((room) => room.recorded).slice().sort((a, b) => a.score - b.score).slice(0, 3);
   const roomHref = (id) => (view === "learner" ? `#/learner/training?room=${id}` : `#/${view}/rooms?room=${id}`);
   const delta = (a, b) => `${a - b >= 0 ? "+" : ""}${a - b}`;
+  const critical = k.rs.some((room) => room.recorded && tracksCriticalErrors(room.id));
 
   return <>
-    <Heading title={`Complete session · ${session.label}`} description={`${session.learner} · ${session.date} at ${session.time} · ${k.played} of ${roomCardOrder.length} rooms`} action={<a className="btn ghost sm" href={backHref(view)}><Icon name="back" /> Back to sessions</a>} eyebrow="COMBINED RESULTS" />
+    <Heading title={`Complete session · ${session.label}`} description={`${session.learner} · completed ${session.date} at ${session.timeSeconds} · ${k.played} of ${roomCardOrder.length} rooms`} action={<a className="btn ghost sm" href={backHref(view)}><Icon name="back" /> Back to sessions</a>} eyebrow="COMBINED RESULTS" />
     <div className="kpis">
       <Kpi label="Combined score" value={`${k.score}%`} detail={`${k.pts} of ${k.max} points`} icon="target" color="yellow" />
       <Kpi label="Rooms passed" value={`${k.passed} of ${k.played}`} detail={`≥ ${PASS_MARK}% with no critical error`} icon="checkcircle" color="mint" />
-      <Kpi label="Critical errors" value={k.errors} detail="Across all rooms" icon="warning" color="orange" />
-      <Kpi label="Total time" value={fmtMin(k.minutes)} detail="Whole session" icon="clock" color="blue" />
+      {critical && <Kpi label="Critical errors" value={k.errors} detail="Across all rooms" icon="warning" color="orange" />}
+      <Kpi label="Duration" value={fmtHms(k.seconds)} detail={`Completed ${session.timeSeconds}`} icon="clock" color="blue" />
     </div>
     <div className="grid cols2even mb22">
       <section className="panel">
-        <Section title="Session recording" subtitle={`${fmtMin(k.minutes)} · one recording for the whole session`} action={<RecordingChip status={session.recording} />} />
+        <Section title="Session recording" subtitle={`${fmtHms(k.seconds)} · one recording for the whole session`} action={<RecordingChip status={session.recording} />} />
         {!RECORDINGS_LIVE ? <RecordingSoon image={roomCards.gowning.image} /> : <>
         <div className={`video-box ${recording.url ? "playing" : ""}`} style={{ backgroundImage: `url('${assetUrl(roomCards.gowning.image)}')` }}>
           {recording.url ? <video {...recording.videoProps} /> : <>
@@ -228,7 +231,7 @@ function CompleteReview({ session }) {
       </section>
       <section className="panel">
         <Section title="Focus next" subtitle="The three lowest rooms in this run" />
-        {weakest.map((room) => <a className="qual" key={room.id} href={roomHref(room.id)}><img className="thumb" src={assetUrl(roomCards[room.id].image)} alt="" loading="lazy" /><div className="grow"><div className="row-heading">{roomById[room.id].name}</div><div className="row-sub">{room.score}%{room.errors ? ` · ${plural(room.errors, "critical error")}` : ""}</div></div><Chip>Open room</Chip></a>)}
+        {weakest.map((room) => <a className="qual" key={room.id} href={roomHref(room.id)}><img className="thumb" src={assetUrl(roomCards[room.id].image)} alt="" loading="lazy" /><div className="grow"><div className="row-heading">{roomById[room.id].name}</div><div className="row-sub">{room.score}%{room.errors && tracksCriticalErrors(room.id) ? ` · ${plural(room.errors, "critical error")}` : ""}</div></div><Chip>Open room</Chip></a>)}
         {previous && <><h4 className="room-h">Compared with the previous complete session</h4><p className="small">Combined score {previous.score}% → <b>{k.score}%</b> ({delta(k.score, previous.score)} points). Rooms passed {previous.passed} → <b>{k.passed}</b>. Critical errors {previous.errors} → <b>{k.errors}</b>.</p></>}
         <h4 className="room-h">Trainer feedback</h4>
         <NotesList notes={notes} />
@@ -236,12 +239,12 @@ function CompleteReview({ session }) {
     </div>
     <section className="panel mb22">
       <Section title="Results by room" subtitle="Each room is scored on its own points; open a room for its step results" action={<span className="bar-key" style={{ margin: 0 }}><span className="sbar-mark-key" />Pass mark {PASS_MARK}%</span>} />
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>ROOM</th><th style={{ minWidth: 200 }}>SCORE</th><th>POINTS</th><th>TIME</th><th>CRITICAL ERRORS</th>{previous && <th>VS PREVIOUS</th>}<th>RESULT</th></tr></thead><tbody>
+      <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>ROOM</th><th style={{ minWidth: 200 }}>SCORE</th><th>POINTS</th><th>DURATION</th>{critical && <th>CRITICAL ERRORS</th>}{previous && <th>VS PREVIOUS</th>}<th>RESULT</th></tr></thead><tbody>
         {k.rs.map((room, j) => {
           const ok = room.score >= PASS_MARK && !room.errors;
-          return <tr key={room.id}><td>{j + 1}</td><td>{room.recorded ? <a className="row-heading" href={`#/session/${session.id}?room=${room.id}`}>{roomById[room.id].name}</a> : <span className="row-heading muted">{roomById[room.id].name}</span>}</td><td>{room.recorded ? <ScoreBar value={room.score} mark={PASS_MARK} ok={ok} /> : <span className="muted">–</span>}</td><td>{room.recorded ? <><b>{room.points}</b>/{room.maxPoints}</> : "–"}</td><td>{room.recorded ? `${room.minutes} min` : "–"}<div className="row-sub">Target {roomCards[room.id].targetMin}</div></td><td>{room.recorded ? room.errors : "–"}</td>{previous && <td>{room.recorded && previous.rs[j].recorded ? delta(room.score, previous.rs[j].score) : "–"}</td>}<td>{room.recorded ? <ResultChip result={ok ? "Pass" : "Fail"} /> : <Chip>Not played</Chip>}</td></tr>;
+          return <tr key={room.id}><td>{j + 1}</td><td>{room.recorded ? <a className="row-heading" href={`#/session/${session.id}?room=${room.id}`}>{roomById[room.id].name}</a> : <span className="row-heading muted">{roomById[room.id].name}</span>}</td><td>{room.recorded ? <ScoreBar value={room.score} mark={PASS_MARK} ok={ok} /> : <span className="muted">–</span>}</td><td>{room.recorded ? <><b>{room.points}</b>/{room.maxPoints}</> : "–"}</td><td>{room.recorded ? fmtHms(room.seconds) : "–"}<div className="row-sub">Target {roomCards[room.id].targetMin} min</div></td>{critical && <td>{room.recorded && tracksCriticalErrors(room.id) ? room.errors : "–"}</td>}{previous && <td>{room.recorded && previous.rs[j].recorded ? delta(room.score, previous.rs[j].score) : "–"}</td>}<td>{room.recorded ? <ResultChip result={ok ? "Pass" : "Fail"} /> : <Chip>Not played</Chip>}</td></tr>;
         })}
-        <tr className="total-row"><td /><td><b>Combined</b></td><td><ScoreBar value={k.score} mark={PASS_MARK} ok={k.result === "Pass"} /></td><td><b>{k.pts}</b>/{k.max}</td><td>{fmtMin(k.minutes)}</td><td>{k.errors}</td>{previous && <td>{delta(k.score, previous.score)}</td>}<td><ResultChip result={k.result} /></td></tr>
+        <tr className="total-row"><td /><td><b>Combined</b></td><td><ScoreBar value={k.score} mark={PASS_MARK} ok={k.result === "Pass"} /></td><td><b>{k.pts}</b>/{k.max}</td><td>{fmtHms(k.seconds)}</td>{critical && <td>{k.errors}</td>}{previous && <td>{delta(k.score, previous.score)}</td>}<td><ResultChip result={k.result} /></td></tr>
       </tbody></table></div>
     </section>
     <div className="grid cols2even"><NotesPanel session={session} /><VideoStatus session={session} /></div>

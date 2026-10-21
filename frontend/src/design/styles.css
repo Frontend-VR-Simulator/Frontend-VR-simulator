@@ -247,6 +247,13 @@ button,select,input,textarea{border-radius:9px}.icon{height:18px;width:18px;stro
 .sess-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .sess-head .thumb{width:64px;height:46px}
 .sess-head .row-heading{display:flex;align-items:center;gap:8px;font-size:15px}
+/* My Sessions, by room: each room opens and closes to show its attempts */
+.sess-toggle>summary{cursor:pointer;list-style:none;margin-bottom:0}
+.sess-toggle>summary::-webkit-details-marker{display:none}
+.sess-toggle[open]>summary{margin-bottom:12px}
+.sess-chevron{flex-shrink:0;transition:transform .15s ease;color:var(--muted)}
+.sess-toggle[open] .sess-chevron{transform:rotate(90deg)}
+@media(prefers-reduced-motion:reduce){.sess-chevron{transition:none}}
 .tile-num.mini{width:24px;height:24px;font-size:11px;border-width:2px}
 .watch{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--yellow)}
 .cs-stats{margin-bottom:14px}

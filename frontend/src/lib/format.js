@@ -18,6 +18,20 @@ export function fmtClock(value) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+const pad2 = (value) => String(value).padStart(2, "0");
+
+// Time of day with seconds, e.g. 10:54:57.
+export function fmtClockSeconds(value) {
+  const date = new Date(value);
+  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+}
+
+// A duration as hours:minutes:seconds, e.g. 00:05:12.
+export function fmtHms(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  return `${pad2(Math.floor(total / 3600))}:${pad2(Math.floor((total % 3600) / 60))}:${pad2(total % 60)}`;
+}
+
 export function fmtDateTime(value) {
   return `${fmtDate(value)}, ${fmtClock(value)}`;
 }

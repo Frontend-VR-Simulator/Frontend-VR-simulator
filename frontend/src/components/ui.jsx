@@ -100,8 +100,8 @@ export function StepDetail({ detail, issue }) {
   return <div className="step-detail">
     {issue && <div className="step-issue"><Icon name="warning" className="ico-sm" /> {issue}</div>}
     <h4>Actions</h4><ol>{detail.sub.map((item) => <li key={item}>{item}</li>)}</ol>
-    <h4>Pass criteria</h4><ul className="criteria">{detail.criteria.map((item) => <li key={item}>{item}</li>)}</ul>
-    <h4>Common errors</h4><ul className="errors">{detail.errors.map((item) => <li key={item}>{item}</li>)}</ul>
+    {detail.criteria?.length > 0 && <><h4>Pass criteria</h4><ul className="criteria">{detail.criteria.map((item) => <li key={item}>{item}</li>)}</ul></>}
+    {detail.errors?.length > 0 && <><h4>Common errors</h4><ul className="errors">{detail.errors.map((item) => <li key={item}>{item}</li>)}</ul></>}
   </div>;
 }
 

@@ -103,8 +103,10 @@ export const rooms = [
   "zone": "clean",
   "module": "granulation",
   "equipment": [
-   "High shear granulator / mixer: mixing bowl, Z-shaped bottom impeller, side cross-blade chopper, top binder addition, discharge path",
-   "Top-spray fluid bed granulator / agglomerator: bottom conical product container, process chamber, top spray nozzle"
+   "Rapid mixer granulator (RMG)",
+   "RMG touch panel",
+   "Intermediate bulk container (IBC)",
+   "IBC lifter"
   ],
   "source": "SOP-GR-004 High-shear wet granulation; SOP-GR-006 Top-spray fluid bed agglomeration.",
   "steps": null
@@ -149,10 +151,11 @@ export const rooms = [
   "entry": "Personnel in / out",
   "module": "gowning",
   "equipment": [
-   "Crossover bench",
-   "Hand-wash sink and sanitiser",
-   "Garment dispensers",
-   "Full-length mirror"
+   "Checklist",
+   "Hand gloves",
+   "Hazmat suit",
+   "Shoes",
+   "Face mask"
   ],
   "source": "SOP-QA-002 Cleanroom gowning and entry.",
   "steps": null
@@ -289,73 +292,52 @@ export const rooms = [
  }
 ];
 
-/* Step-by-step actions, pass criteria and common errors for rooms whose steps are defined by a module. */
+/* Step-by-step actions (and, where defined, pass criteria and common errors) for rooms whose steps are defined by a module. */
 export const roomDetails = {
  "gowning": {
   "title": "Cleanroom Gowning",
   "steps": [
-   "Hazmat suit",
-   "Shoes",
    "Hand gloves",
-   "Face mask"
+   "Hazmat suit",
+   "Face mask",
+   "Shoes"
   ],
   "detail": [
    {
     "sub": [
-     "Take a sealed hazmat suit of the right size",
-     "Step in without letting it touch the floor",
-     "Zip fully and close the collar"
+     "Approach the glove box.",
+     "Press Grab to pick up the gloves.",
+     "Release to wear them. The gloves disappear from your hand, and the checklist updates."
     ],
-    "criteria": [
-     "Suit fully closed with no exposed clothing"
-    ],
-    "errors": [
-     "Suit not fully zipped",
-     "Suit touched the floor while putting it on"
-    ]
+    "criteria": [],
+    "errors": []
    },
    {
     "sub": [
-     "Sit on the crossover bench",
-     "Put on the cleanroom shoes one foot at a time",
-     "Swing each foot to the clean side"
+     "Approach the hazmat suit.",
+     "Press Grab to pick it up.",
+     "Release to wear it. The suit disappears from your hand, and the checklist updates."
     ],
-    "criteria": [
-     "Covered foot never touches the dirty side"
-    ],
-    "errors": [
-     "Shoe placed on the dirty side",
-     "Shoes put on before the suit"
-    ]
+    "criteria": [],
+    "errors": []
    },
    {
     "sub": [
-     "Sanitise hands",
-     "Put on gloves without touching the outer surface",
-     "Pull the cuffs over the suit sleeves"
+     "Approach the mask box.",
+     "Press Grab to pick up a mask.",
+     "Release to wear it. The mask disappears from your hand, and the checklist updates."
     ],
-    "criteria": [
-     "Cuffs cover the sleeves",
-     "No tears or punctures"
-    ],
-    "errors": [
-     "Glove cuffs left under the sleeves",
-     "Outer glove surface touched with bare hands"
-    ]
+    "criteria": [],
+    "errors": []
    },
    {
     "sub": [
-     "Put on the face mask covering nose and mouth",
-     "Press the nose clip to seal",
-     "Check the fit in the mirror"
+     "Approach the shoe rack.",
+     "Press Grab to pick up the shoes.",
+     "Release to wear them. The shoes disappear from your hand, and the checklist updates."
     ],
-    "criteria": [
-     "Nose and mouth fully covered with a tight seal"
-    ],
-    "errors": [
-     "Mask not covering the nose",
-     "Mask fitted after entering the clean area"
-    ]
+    "criteria": [],
+    "errors": []
    }
   ],
   "skills": [
@@ -386,33 +368,22 @@ export const roomDetails = {
   "detail": [
    {
     "sub": [
-     "Verify materials against the batch record",
-     "Charge the dry powders into the mixing bowl",
-     "Close and lock the lid"
+     "Approach the RMG touch panel.",
+     "Press Load IBC.",
+     "Wait for the lifter to raise and rotate the IBC into the loading position.",
+     "Wait for loading to finish before starting mixing."
     ],
-    "criteria": [
-     "Correct materials and quantities loaded",
-     "Lid locked before starting"
-    ],
-    "errors": [
-     "Material not verified against the batch record",
-     "Lid not locked before starting"
-    ]
+    "criteria": [],
+    "errors": []
    },
    {
     "sub": [
-     "Start the impeller and chopper at the set speed",
-     "Add binder from the top while the impeller runs",
-     "Mix for the set time, then stop and check the granules"
+     "Press Start Mixing on the RMG touch panel.",
+     "Wait for the mixing cycle to finish.",
+     "The session ends automatically, and the results are saved."
     ],
-    "criteria": [
-     "Binder added only while the impeller rotates",
-     "Mixing time as specified"
-    ],
-    "errors": [
-     "Binder added with the impeller stopped",
-     "Mixing time shorter than specified"
-    ]
+    "criteria": [],
+    "errors": []
    }
   ],
   "skills": [
@@ -555,13 +526,23 @@ export const roomVideos = {
  }
 };
 
-/* Assessment points per step, weighted by GMP risk (most rooms total 100; Gowning and Granulation use 10 marks per step). [points, critical]. An error on a critical step fails the attempt. */
-export const roomPoints = {"gowning":[[10,1],[10,0],[10,1],[10,1]],"wash":[[5,0],[10,0],[10,0],[15,0],[20,1],[15,1],[10,0],[15,1]],"cleanstore":[[25,1],[15,0],[15,1],[15,0],[10,0],[20,0]],"goods":[[10,0],[10,0],[15,0],[15,1],[15,1],[25,1],[10,0]],"dispensary":[[15,1],[15,1],[20,1],[15,0],[20,1],[15,0]],"granulation":[[10,0],[10,1]],"blending":[[10,1],[15,1],[10,0],[10,0],[15,0],[15,0],[15,1],[10,0]],"tableting":[[10,1],[15,0],[10,0],[10,0],[15,0],[10,0],[10,0],[20,1]],"blister":[[10,1],[10,0],[5,0],[10,0],[10,0],[10,0],[15,1],[10,0],[10,0],[10,0]],"cartoning":[[10,1],[15,1],[15,1],[15,0],[5,0],[10,0],[15,0],[15,0]],"water":[[10,0],[10,0],[25,1],[25,1],[10,0],[20,0]]};
+/* Assessment points per step, weighted by GMP risk (most rooms total 100; Gowning totals 10 and Granulation 20, matching the VR app). [points, critical]. An error on a critical step fails the attempt. */
+export const roomPoints = {"gowning":[[2,0],[3,0],[3,0],[2,0]],"wash":[[5,0],[10,0],[10,0],[15,0],[20,1],[15,1],[10,0],[15,1]],"cleanstore":[[25,1],[15,0],[15,1],[15,0],[10,0],[20,0]],"goods":[[10,0],[10,0],[15,0],[15,1],[15,1],[25,1],[10,0]],"dispensary":[[15,1],[15,1],[20,1],[15,0],[20,1],[15,0]],"granulation":[[10,0],[10,0]],"blending":[[10,1],[15,1],[10,0],[10,0],[15,0],[15,0],[15,1],[10,0]],"tableting":[[10,1],[15,0],[10,0],[10,0],[15,0],[10,0],[10,0],[20,1]],"blister":[[10,1],[10,0],[5,0],[10,0],[10,0],[10,0],[15,1],[10,0],[10,0],[10,0]],"cartoning":[[10,1],[15,1],[15,1],[15,0],[5,0],[10,0],[15,0],[15,0]],"water":[[10,0],[10,0],[25,1],[25,1],[10,0],[20,0]]};
 
 export const roomById = Object.fromEntries(rooms.map((room) => [room.id, room]));
 
 export function roomSteps(room) {
   return room.steps || roomDetails[room.module]?.steps || [];
+}
+
+// Total points available in a room.
+export function roomTotalPoints(id) {
+  return (roomPoints[id] || []).reduce((sum, [points]) => sum + points, 0);
+}
+
+// Rooms with no critical steps (Gowning, Granulation) do not track critical errors.
+export function tracksCriticalErrors(id) {
+  return (roomPoints[id] || []).some(([, critical]) => critical);
 }
 
 export function roomName(id) {
