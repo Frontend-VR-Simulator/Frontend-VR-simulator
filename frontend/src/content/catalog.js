@@ -484,48 +484,6 @@ export const roomCards = {
 
 export const roomCardOrder = ["gowning","wash","cleanstore","goods","dispensary","granulation","blending","tableting","blister","cartoning","water"];
 
-/* "How to" process videos (YouTube). Tableting chapters follow the tablet press timestamps. */
-export const roomVideos = {
- "granulation": {
-  "yt": "ZnQrZo0zbjE",
-  "title": "Tablet granulation animation"
- },
- "tableting": {
-  "yt": "4xggZRckfTE",
-  "title": "Tablet press animation",
-  "chapters": [
-   [
-    "Filling",
-    19
-   ],
-   [
-    "Pre-compression",
-    48
-   ],
-   [
-    "Main compression",
-    57
-   ],
-   [
-    "Ejection",
-    67
-   ],
-   [
-    "Discharge to chute",
-    81
-   ]
-  ]
- },
- "blister": {
-  "yt": "ksvkCsFoSnE",
-  "title": "Blister packing and cartoning animation"
- },
- "cartoning": {
-  "yt": "ksvkCsFoSnE",
-  "title": "Blister packing and cartoning animation"
- }
-};
-
 /* Assessment points per step, weighted by GMP risk (most rooms total 100; Gowning totals 10 and Granulation 20, matching the VR app). [points, critical]. An error on a critical step fails the attempt. */
 export const roomPoints = {"gowning":[[2,0],[3,0],[3,0],[2,0]],"wash":[[5,0],[10,0],[10,0],[15,0],[20,1],[15,1],[10,0],[15,1]],"cleanstore":[[25,1],[15,0],[15,1],[15,0],[10,0],[20,0]],"goods":[[10,0],[10,0],[15,0],[15,1],[15,1],[25,1],[10,0]],"dispensary":[[15,1],[15,1],[20,1],[15,0],[20,1],[15,0]],"granulation":[[10,0],[10,0]],"blending":[[10,1],[15,1],[10,0],[10,0],[15,0],[15,0],[15,1],[10,0]],"tableting":[[10,1],[15,0],[10,0],[10,0],[15,0],[10,0],[10,0],[20,1]],"blister":[[10,1],[10,0],[5,0],[10,0],[10,0],[10,0],[15,1],[10,0],[10,0],[10,0]],"cartoning":[[10,1],[15,1],[15,1],[15,0],[5,0],[10,0],[15,0],[15,0]],"water":[[10,0],[10,0],[25,1],[25,1],[10,0],[20,0]]};
 

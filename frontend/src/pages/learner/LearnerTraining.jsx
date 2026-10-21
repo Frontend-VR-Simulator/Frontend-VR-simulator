@@ -1,9 +1,8 @@
-import { useState } from "react";
-import { PASS_MARK, roomById, roomCardOrder, roomCards, roomDetails, roomPoints, roomSteps, roomTotalPoints, roomVideos, tracksCriticalErrors } from "../../content/catalog";
+import { PASS_MARK, roomById, roomCardOrder, roomCards, roomDetails, roomPoints, roomSteps, roomTotalPoints, tracksCriticalErrors } from "../../content/catalog";
 import { Chip, Empty, Heading, Icon, PctBar, Sparkline, StepDetail } from "../../components/ui";
 import { assetUrl } from "../../lib/visual";
 import { useApp } from "../../lib/context";
-import { fmtClockSeconds, fmtDate, fmtHms, fmtSeconds } from "../../lib/format";
+import { fmtClockSeconds, fmtDate, fmtHms } from "../../lib/format";
 
 function roomStatus(progress) {
   return progress === 100 ? ["Complete", "mint"] : progress ? ["In progress", "yellow"] : ["Not started", "gray"];
@@ -56,20 +55,9 @@ function RoomTile({ id }) {
   </a>;
 }
 
-function RoomVideo({ room, card }) {
-  const [playing, setPlaying] = useState(null);
-  const video = roomVideos[room.id];
-  if (!video) return <div className="video-box" style={{ backgroundImage: `url('${assetUrl(card.image)}')` }}><div className="video-empty"><Icon name="video" className="ico-lg" /><b>Process video coming soon</b><span>Until then, follow the process steps above. Your VR session guides you through each one.</span></div></div>;
-  return <>
-    <div className={`video-box ${playing != null ? "playing" : ""}`} style={{ backgroundImage: `url('${assetUrl(card.image)}')` }}>
-      {playing != null ? <iframe src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(video.yt)}?autoplay=1&rel=0&start=${playing}`} title="Process video" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen /> : <>
-        <button className="video-play" onClick={() => setPlaying(0)} aria-label={`Play ${video.title}`}><Icon name="play" className="ico-lg" /></button>
-        <div className="video-caption"><Icon name="video" className="ico-sm" /> {video.title}</div>
-      </>}
-    </div>
-    {video.chapters && <div className="chapters"><span className="small muted">Jump to:</span>{video.chapters.map(([title, start]) => <button key={title} className="chapter" onClick={() => setPlaying(start)}><Icon name="play" className="ico-sm" /> {title} <em>{fmtSeconds(start)}</em></button>)}</div>}
-    <p className="tiny muted mt12">Plays from YouTube. <a className="link" href={`https://www.youtube.com/watch?v=${video.yt}`} target="_blank" rel="noopener noreferrer">Open on YouTube <Icon name="external" className="ico-sm" /></a></p>
-  </>;
+// No walkthrough videos are linked yet, so every room shows the placeholder.
+function RoomVideo({ card }) {
+  return <div className="video-box" style={{ backgroundImage: `url('${assetUrl(card.image)}')` }}><div className="video-empty"><Icon name="video" className="ico-lg" /><b>Process video coming soon</b><span>Until then, follow the process steps above. Your VR session guides you through each one.</span></div></div>;
 }
 
 function PartHead({ number, title, sub }) {
@@ -132,7 +120,7 @@ function RoomDetail({ room }) {
       })}
     </section>
 
-    <section className="panel part"><PartHead number={3} title="Watch how it is done" sub="A walkthrough of the process before you enter VR" /><RoomVideo room={room} card={card} /></section>
+    <section className="panel part"><PartHead number={3} title="Watch how it is done" sub="A walkthrough of the process before you enter VR" /><RoomVideo card={card} /></section>
 
     <section className="panel part">
       <PartHead number={4} title="Your progress and results" sub={seen ? `${stats.sessions} session${stats.sessions > 1 ? "s" : ""} recorded · last completed ${fmtDate(stats.completedAt)} at ${fmtClockSeconds(stats.completedAt)}` : "Your results appear here after your first VR session"} />
