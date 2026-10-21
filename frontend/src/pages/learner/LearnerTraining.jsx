@@ -107,8 +107,6 @@ function RoomDetail({ room }) {
       <div className="flex gap8 mb8" style={{ flexWrap: "wrap", alignItems: "center" }}>
         <span className={`tile-num static ${progress.progress === 100 ? "done" : progress.progress ? "now" : ""}`}>{n}</span>
         <span className="chip gray">Step {n} of {roomCardOrder.length}</span><Chip color={statusColor}>{statusWord}</Chip>
-        <span className="chip gray">{room.zone === "clean" ? "Clean zone" : "Not a clean zone"}</span>
-        <span className="chip gray">{room.w} × {room.h} m{room.height ? ` · ${room.height} m high` : ""}</span>
       </div>
       <h1>{room.name}</h1><p>{card.purpose}</p>
     </div></section>
@@ -116,7 +114,6 @@ function RoomDetail({ room }) {
     <section className="panel part">
       <PartHead number={1} title="Equipment you will use" sub={`What is in the ${room.name.toLowerCase()} and what you will handle`} />
       <div className="equip-grid">{room.equipment.map((item) => <div className="equip" key={item}><Icon name="settings" /><span>{item}</span></div>)}</div>
-      <p className="tiny muted mt12"><Icon name="info" className="ico-sm" /> {room.zone === "clean" ? "Clean zone" : "Not a clean zone"}, {room.w} × {room.h} m, ceiling {room.height || 3.5} m.{room.airlock ? " Airlock: only one set of shutter doors opens at a time." : ""} Reference: {room.source}</p>
     </section>
 
     <section className="panel part">

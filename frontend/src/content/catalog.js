@@ -380,7 +380,7 @@ export const roomDetails = {
     "sub": [
      "Press Start Mixing on the RMG touch panel.",
      "Wait for the mixing cycle to finish.",
-     "The session ends automatically, and the results are saved."
+     "The session ends, and the results are saved."
     ],
     "criteria": [],
     "errors": []
