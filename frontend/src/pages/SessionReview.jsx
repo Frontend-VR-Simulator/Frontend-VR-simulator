@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PASS_MARK, roomById, roomCardOrder, roomCards, roomDetails, roomSteps, tracksCriticalErrors } from "../content/catalog";
 import { Chip, Empty, Heading, Icon, Kpi, PctBar, RecordingChip, RecordingSoon, ResultChip, ScoreBar, Section, SkillsBlock, StepDetail } from "../components/ui";
 import { RECORDINGS_LIVE } from "../config/features";
@@ -100,10 +100,33 @@ function VideoStatus({ session }) {
   </section>;
 }
 
-function RoomReview({ session }) {
+// Links can open the review at its feedback or recording. Feedback scrolls only when it
+// is out of view; the recording is brought to the top. scroll-margin clears the top bar.
+function useScrollIntoView(ref, active, block = "nearest") {
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block });
+  }, [ref, active, block]);
+}
+
+// Opening the recording link of a ready recording starts playback.
+function useAutoplay(recording, session, active) {
+  const started = useRef(false);
+  useEffect(() => {
+    if (!active || started.current || !RECORDINGS_LIVE || session.recording !== "Ready") return;
+    started.current = true;
+    recording.play();
+  }, [active, recording, session.recording]);
+}
+
+function RoomReview({ session, openFeedback = false, openRecording = false }) {
   const { model, view } = useApp();
-  const [tab, setTab] = useState("assessment");
+  const [tab, setTab] = useState(openFeedback ? "notes" : "assessment");
+  const feedbackRef = useRef(null);
+  const recordingRef = useRef(null);
+  useScrollIntoView(feedbackRef, openFeedback);
+  useScrollIntoView(recordingRef, openRecording, "start");
   const recording = useRecording(session);
+  useAutoplay(recording, session, openRecording);
   const room = roomById[session.module];
   const entry = session.rooms[0] || {};
   const steps = room ? roomSteps(room) : [];
@@ -131,8 +154,8 @@ function RoomReview({ session }) {
     </div>
     <div className="review-grid">
       <div className="stack">
-        <section className="panel">
-          <div className="section-head"><div><h3 className="panel-title">Session recording</h3><p>{session.date} · {session.minutes} minutes{RECORDINGS_LIVE ? ` · ${session.recording}` : ""}</p></div><RecordingChip status={session.recording} /></div>
+        <section className="panel scroll-target" ref={recordingRef}>
+          <div className="section-head"><div><h3 className="panel-title">Session recording</h3><p>{session.date} · {fmtHms(session.seconds)}{RECORDINGS_LIVE ? ` · ${session.recording}` : ""}</p></div><RecordingChip status={session.recording} /></div>
           {!RECORDINGS_LIVE ? <RecordingSoon image={room && roomCards[room.id]?.image} minHeight={300} /> : <div className="player">
             {recording.url ? <video {...recording.videoProps} /> : session.recording === "Ready" ? <>
               <div className="player-poster"><button className="player-action" aria-label="Play recording" onClick={() => recording.play()} disabled={recording.loading}><Icon name={recording.loading ? "clock" : "play"} className="ico-lg" /></button></div>
@@ -167,7 +190,7 @@ function RoomReview({ session }) {
         </section>
       </div>
       <div className="stack">
-        <section className="panel">
+        <section className="panel scroll-target" ref={feedbackRef}>
           <div className="tabs mb16"><button className={`tab ${tab === "assessment" ? "active" : ""}`} onClick={() => setTab("assessment")}>Assessment</button><button className={`tab ${tab === "notes" ? "active" : ""}`} onClick={() => setTab("notes")}>Feedback ({notes.length})</button></div>
           {tab === "assessment" ? <>
             <Section title="Step-by-step results" subtitle={hasSteps ? "Room and procedure milestones" : "The VR app did not send step results for this session"} />
@@ -193,9 +216,14 @@ function RoomReview({ session }) {
   </>;
 }
 
-function CompleteReview({ session }) {
+function CompleteReview({ session, openFeedback = false, openRecording = false }) {
   const { model, view } = useApp();
+  const feedbackRef = useRef(null);
+  const recordingRef = useRef(null);
+  useScrollIntoView(feedbackRef, openFeedback);
+  useScrollIntoView(recordingRef, openRecording, "start");
   const recording = useRecording(session);
+  useAutoplay(recording, session, openRecording);
   const runs = model.completeSessions(session.traineeId);
   const index = runs.findIndex((run) => run.id === session.id);
   const k = completeSummary(session);
@@ -217,7 +245,7 @@ function CompleteReview({ session }) {
       <Kpi label="Duration" value={fmtHms(k.seconds)} detail={`Completed ${session.timeSeconds}`} icon="clock" color="blue" />
     </div>
     <div className="grid cols2even mb22">
-      <section className="panel">
+      <section className="panel scroll-target" ref={recordingRef}>
         <Section title="Session recording" subtitle={`${fmtHms(k.seconds)} · one recording for the whole session`} action={<RecordingChip status={session.recording} />} />
         {!RECORDINGS_LIVE ? <RecordingSoon image={roomCards.gowning.image} /> : <>
         <div className={`video-box ${recording.url ? "playing" : ""}`} style={{ backgroundImage: `url('${assetUrl(roomCards.gowning.image)}')` }}>
@@ -233,7 +261,7 @@ function CompleteReview({ session }) {
         <Section title="Focus next" subtitle="The three lowest rooms in this run" />
         {weakest.map((room) => <a className="qual" key={room.id} href={roomHref(room.id)}><img className="thumb" src={assetUrl(roomCards[room.id].image)} alt="" loading="lazy" /><div className="grow"><div className="row-heading">{roomById[room.id].name}</div><div className="row-sub">{room.score}%{room.errors && tracksCriticalErrors(room.id) ? ` · ${plural(room.errors, "critical error")}` : ""}</div></div><Chip>Open room</Chip></a>)}
         {previous && <><h4 className="room-h">Compared with the previous complete session</h4><p className="small">Combined score {previous.score}% → <b>{k.score}%</b> ({delta(k.score, previous.score)} points). Rooms passed {previous.passed} → <b>{k.passed}</b>. Critical errors {previous.errors} → <b>{k.errors}</b>.</p></>}
-        <h4 className="room-h">Trainer feedback</h4>
+        <h4 className="room-h scroll-target" ref={feedbackRef}>Trainer feedback</h4>
         <NotesList notes={notes} />
       </section>
     </div>
@@ -251,11 +279,15 @@ function CompleteReview({ session }) {
   </>;
 }
 
-export default function SessionReview({ id, room }) {
+export default function SessionReview({ id, room, tab }) {
   const { model } = useApp();
   const session = model.sessionById.get(id);
   const visit = session && room ? model.roomVisit(session, room) : null;
-  if (visit) return <RoomReview session={visit} key={`${session.id}-${room}`} />;
+  const openFeedback = tab === "feedback";
+  const openRecording = tab === "recording";
+  if (visit) return <RoomReview session={visit} openFeedback={openFeedback} openRecording={openRecording} key={`${session.id}-${room}-${tab}`} />;
   if (!session) return <><Heading title="Session not found" description="This session does not exist or you do not have access to it." eyebrow="VR SESSION REVIEW" /><Empty>Check the link, or open the session from your session history.</Empty></>;
-  return session.type === "complete" ? <CompleteReview session={session} key={session.id} /> : <RoomReview session={session} key={session.id} />;
+  return session.type === "complete"
+    ? <CompleteReview session={session} openFeedback={openFeedback} openRecording={openRecording} key={`${session.id}-${tab}`} />
+    : <RoomReview session={session} openFeedback={openFeedback} openRecording={openRecording} key={`${session.id}-${tab}`} />;
 }

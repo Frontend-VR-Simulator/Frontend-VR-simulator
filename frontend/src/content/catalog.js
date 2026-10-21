@@ -407,7 +407,7 @@ export const roomDetails = {
  }
 };
 
-/* My Training: one card per room. targetMin = expected time in room. */
+/* Learning Path: one card per room. targetMin = expected time in room. */
 export const roomCards = {
  "gowning": {
   "image": "room-gowning.jpg",

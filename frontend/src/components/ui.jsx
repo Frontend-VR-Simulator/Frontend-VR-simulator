@@ -3,6 +3,7 @@ import { icons } from "./icons";
 import { PASS_MARK } from "../content/catalog";
 import { assetUrl, colors } from "../lib/visual";
 import { RECORDINGS_LIVE } from "../config/features";
+import { useApp } from "../lib/context";
 
 const tone = (color) => colors[color] || color;
 const clamp = (value) => Math.max(0, Math.min(100, value));
@@ -38,9 +39,26 @@ export const RecordingChip = ({ status }) => (RECORDINGS_LIVE
   ? <Chip color={status === "Ready" ? "blue" : status === "Processing" ? "purple" : "gray"}>{status}</Chip>
   : <Chip color="purple">Coming soon</Chip>);
 
+// Small play button for the Recording column of session tables. It opens the
+// session review at its recording, without opening the row's own link.
+export function RecordingPlay({ onOpen, status }) {
+  const label = RECORDINGS_LIVE ? `Watch recording (${status})` : "Watch recording";
+  return <button className="rec-play" type="button" title={label} aria-label={label} onClick={(event) => { event.stopPropagation(); onOpen(); }} onKeyDown={(event) => event.stopPropagation()}><Icon name="play" /></button>;
+}
+
+// A video frame with a play button, shown where a video is not linked yet.
+// Pressing play explains that the video is not available instead of doing nothing.
+export function VideoPlaceholder({ image, caption, label = caption, message, minHeight }) {
+  const { toast } = useApp();
+  return <div className="video-box" style={{ ...(minHeight ? { minHeight } : {}), ...(image ? { backgroundImage: `url('${assetUrl(image)}')` } : {}) }}>
+    <button className="video-play" type="button" onClick={() => toast(message)} aria-label={`Play ${label.toLowerCase()}`}><Icon name="play" className="ico-lg" /></button>
+    {caption && <div className="video-caption"><Icon name="video" className="ico-sm" /> {caption}</div>}
+  </div>;
+}
+
 // Shown wherever session video would appear until recordings are enabled.
 export function RecordingSoon({ image, minHeight = 232 }) {
-  return <div className="video-box" style={{ minHeight, ...(image ? { backgroundImage: `url('${assetUrl(image)}')` } : {}) }}><div className="video-empty"><Icon name="video" className="ico-lg" /><b>Session recordings are coming soon</b><span>Every VR attempt will be recorded and linked to its assessment, with jump-to markers at each step and error. Results and step-by-step scores are already available.</span></div></div>;
+  return <VideoPlaceholder image={image} minHeight={minHeight} caption="Session recording" message="Session recordings are not available yet. Results and step-by-step scores are already shown." />;
 }
 
 export function Thumb({ image, alt = "Training room image" }) {

@@ -51,7 +51,7 @@ export default function LearnerHome() {
     }),
     ...model.recentNotes.map((note) => {
       const session = model.sessionById.get(note.sessionId);
-      return { key: note.id, title: `Trainer feedback on ${session?.title ?? "a session"}, attempt ${session?.attempt ?? ""}`, meta: note.author, state: "New", tone: "blue", icon: "message", href: `#/session/${note.sessionId}` };
+      return { key: note.id, title: `Trainer feedback on ${session?.title ?? "a session"}, attempt ${session?.attempt ?? ""}`, meta: note.author, state: "New", tone: "blue", icon: "message", href: `#/session/${note.sessionId}?tab=feedback` };
     }),
   ].slice(0, 5);
   const quals = roomCardOrder.filter((id) => progress[id].last || assigned.has(id)).slice(0, 6);
@@ -89,7 +89,7 @@ export default function LearnerHome() {
       </div></div>
 
       <section className="panel">
-        <Section title="Upcoming deadlines" subtitle="Assigned training due soon" action={<a className="link" href="#/learner/training">Training path <Icon name="arrow" /></a>} />
+        <Section title="Upcoming deadlines" subtitle="Assigned training due soon" action={<a className="link" href="#/learner/training">Learning path <Icon name="arrow" /></a>} />
         {upcoming.length ? upcoming.map((program) => {
           const parts = dateParts(localDate(program.due_date));
           return <div className="booking" key={program.id}>
@@ -107,7 +107,7 @@ export default function LearnerHome() {
         {tasks.length ? tasks.map((task) => <a className="task" key={task.key} href={task.href}><span className={`task-icon tone-${task.tone === "gray" ? "blue" : task.tone}`}><Icon name={task.icon} /></span><div className="grow"><div className="row-heading">{task.title}</div><div className="row-sub">{task.meta}</div></div><Chip color={task.tone}>{task.state}</Chip></a>) : <Empty>Nothing to do right now.</Empty>}
       </section>
       <section className="panel">
-        <Section title="My qualifications" subtitle="Training matrix status" action={<a className="link" href="#/learner/training">Training path <Icon name="arrow" /></a>} />
+        <Section title="My qualifications" subtitle="Training matrix status" action={<a className="link" href="#/learner/training">Learning path <Icon name="arrow" /></a>} />
         {quals.length ? quals.map((id) => {
           const [state, tone, icon, detail] = qualificationOf(id, progress[id], assigned);
           return <a className="qual" key={id} href={`#/learner/training?room=${id}`}><Thumb image={roomCards[id].image} /><div className="grow"><div className="row-heading">{roomById[id].name}</div><div className="row-sub">{detail}</div></div><span className={`chip ${tone}`}><Icon name={icon} className="ico-sm" /> {state}</span></a>;

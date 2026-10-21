@@ -1,5 +1,5 @@
 import { PASS_MARK, roomById, roomCardOrder, roomCards, roomDetails, roomPoints, roomSteps, roomTotalPoints, tracksCriticalErrors } from "../../content/catalog";
-import { Chip, Empty, Heading, Icon, PctBar, Sparkline, StepDetail } from "../../components/ui";
+import { Chip, Empty, Heading, Icon, PctBar, Sparkline, StepDetail, VideoPlaceholder } from "../../components/ui";
 import { assetUrl } from "../../lib/visual";
 import { useApp } from "../../lib/context";
 import { fmtClockSeconds, fmtDate, fmtHms } from "../../lib/format";
@@ -57,7 +57,7 @@ function RoomTile({ id }) {
 
 // No walkthrough videos are linked yet, so every room shows the placeholder.
 function RoomVideo({ card }) {
-  return <div className="video-box" style={{ backgroundImage: `url('${assetUrl(card.image)}')` }}><div className="video-empty"><Icon name="video" className="ico-lg" /><b>Process video coming soon</b><span>Until then, follow the process steps above. Your VR session guides you through each one.</span></div></div>;
+  return <VideoPlaceholder image={card.image} label="Process video" message="This process video is not available yet. Follow the process steps above; your VR session guides you through each one." />;
 }
 
 function PartHead({ number, title, sub }) {
@@ -160,7 +160,7 @@ export default function LearnerTraining({ query }) {
   if (target) return <RoomDetail room={target} key={target.id} />;
   const done = roomCardOrder.filter((id) => model.roomProgress(id, model.me.id).progress === 100).length;
   return <>
-    <Heading title="My training" description={`${roomCardOrder.length} rooms of the production suite · ${done} complete. Select a room for your results, steps and achievements.`} eyebrow="LEARNING PATH" />
+    <Heading title="Learning path" description={`${roomCardOrder.length} rooms of the production suite · ${done} complete. Select a room for your results, steps and achievements.`} eyebrow="PRODUCTION SUITE" />
     <div className="room-grid">{roomCardOrder.map((id) => <RoomTile id={id} key={id} />)}</div>
   </>;
 }

@@ -264,3 +264,12 @@ button,select,input,textarea{border-radius:9px}.icon{height:18px;width:18px;stro
 .total-row td{border-top:2px solid var(--line);background:var(--panel2)}
 .page-heading .seg{align-self:flex-end}
 @media(max-width:760px){.room-strip{grid-template-columns:repeat(6,minmax(0,1fr))}}
+
+/* Recording column: a small play button that opens the session at its recording */
+.rec-play{width:30px;height:30px;border-radius:50%;border:0;background:var(--yellow);color:#17150b;display:inline-grid;place-items:center;cursor:pointer;transition:transform .15s}
+.rec-play:hover{transform:scale(1.08)}
+.rec-play:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+.rec-play .icon{width:14px;height:14px;margin-left:2px}
+@media(prefers-reduced-motion:reduce){.rec-play{transition:none}}
+/* Parts of the review page that links jump to stay clear of the sticky top bar */
+.scroll-target{scroll-margin-top:84px}

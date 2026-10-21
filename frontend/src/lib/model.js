@@ -11,6 +11,11 @@ export const accountRoleLabels = { trainee: "Trainee", trainer: "Trainer", head:
 
 export const avg = (values) => (values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0);
 
+// A session link that opens a given part of the review page, e.g. "feedback" or "recording".
+export function withTab(href, tab) {
+  return `${href}${href.includes("?") ? "&" : "?"}tab=${tab}`;
+}
+
 export function isPendingReview(session) {
   return !session.reviewed && session.result !== "Pass";
 }

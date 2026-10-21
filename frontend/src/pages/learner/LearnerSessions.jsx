@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { PASS_MARK, roomById, roomCardOrder, roomCards, tracksCriticalErrors } from "../../content/catalog";
-import { Empty, Heading, Icon, RecordingChip, ResultChip, Thumb } from "../../components/ui";
+import { Empty, Heading, Icon, RecordingPlay, ResultChip, Thumb } from "../../components/ui";
 import { RECORDINGS_LIVE } from "../../config/features";
 import { openOnKey } from "../../lib/interaction";
 import { useApp } from "../../lib/context";
-import { completeSummary } from "../../lib/model";
+import { completeSummary, withTab } from "../../lib/model";
 import { fmtHms } from "../../lib/format";
 import { goto } from "../../lib/router";
 
@@ -29,7 +29,7 @@ function RoomGroups() {
             const open = () => goto(session.href);
             return <tr className="clickable" key={session.href} tabIndex={0} onClick={open} onKeyDown={openOnKey(open)}>
               <td><b>Attempt {session.attempt}</b></td><td>{session.date}<div className="row-sub">{session.timeSeconds}</div></td><td>{fmtHms(session.seconds)}</td><td><b>{session.score}%</b>{session.rooms[0]?.maxPoints != null && <div className="row-sub">{session.rooms[0].points} of {session.rooms[0].maxPoints} pts</div>}</td>{critical && <td>{session.errors}</td>}<td><ResultChip result={session.result} /></td>
-              <td>{!RECORDINGS_LIVE ? <RecordingChip status={session.recording} /> : session.recording === "Ready" ? <span className="watch"><Icon name="play" className="ico-sm" /> Watch</span> : <span className="small muted">{session.recording}</span>}</td>
+              <td><RecordingPlay status={session.recording} onOpen={() => goto(withTab(session.href, "recording"))} /></td>
               <td className="pill-arrow"><Icon name="chevron" /></td>
             </tr>;
           })}</tbody>
